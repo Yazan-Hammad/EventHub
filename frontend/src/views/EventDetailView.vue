@@ -71,7 +71,7 @@ onMounted(() => {
     <p v-else-if="error" class="error">{{ error }}</p>
 
     <div v-else-if="event">
-      <router-link to="/">&larr; Back to events</router-link>
+      <router-link to="/" draggable="false">&larr; Back to events</router-link>
       <h1>{{ event.title }}</h1>
       <p>{{ event.description }}</p>
       <ul class="meta">
