@@ -1,0 +1,214 @@
+{
+  "info": {
+    "_postman_id": "e5b6f1a0-2c3f-4e8a-9d7a-3f6b1c8e2a10",
+    "name": "EventHub",
+    "description": "REST API for EventHub — organizers publish events at venues, people register to attend. Base URL for versioned routes is {{baseUrl}} (default http://localhost:5000/api/v1). Set {{eventId}}, {{userId}}, {{venueId}}, {{organizerId}} from the responses of the List requests before running the ID-based requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "serverUrl", "value": "http://localhost:5000", "type": "string" },
+    { "key": "baseUrl", "value": "http://localhost:5000/api/v1", "type": "string" },
+    { "key": "eventId", "value": "", "type": "string" },
+    { "key": "userId", "value": "", "type": "string" },
+    { "key": "venueId", "value": "", "type": "string" },
+    { "key": "organizerId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{serverUrl}}/health",
+              "host": ["{{serverUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Basic liveness check, not versioned."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "List Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events?q=&city=&category=&page=1&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["events"],
+              "query": [
+                { "key": "q", "value": "", "description": "Text search across title + description", "disabled": true },
+                { "key": "city", "value": "", "description": "Filter by venue city", "disabled": true },
+                { "key": "category", "value": "", "description": "Filter by category", "disabled": true },
+                { "key": "page", "value": "1" },
+                { "key": "size", "value": "10" }
+              ]
+            },
+            "description": "List events with optional search/filters and pagination. Returns { data, page, size, total, totalPages }."
+          }
+        },
+        {
+          "name": "Get Event By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["events", "{{eventId}}"]
+            },
+            "description": "One event including venue, organizer and categories. 404 if not found, 400 if id is malformed."
+          }
+        },
+        {
+          "name": "Create Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Board Game Night\",\n  \"description\": \"Casual board games, snacks provided.\",\n  \"startsAt\": \"2026-09-20T18:00:00.000Z\",\n  \"price\": 5,\n  \"venue\": \"{{venueId}}\",\n  \"organizer\": \"{{organizerId}}\",\n  \"categories\": [\"games\", \"social\"]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["events"]
+            },
+            "description": "Create an event. 400 if a required field is missing/invalid or venue/organizer id doesn't exist."
+          }
+        },
+        {
+          "name": "Update Event",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 10\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["events", "{{eventId}}"]
+            },
+            "description": "Partial update — send only the fields you want to change. 404 if the event doesn't exist, 400 on invalid fields/references."
+          }
+        },
+        {
+          "name": "Delete Event",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["events", "{{eventId}}"]
+            },
+            "description": "Deletes the event and cascades to delete its registrations. Returns 204 on success, 404 if not found."
+          }
+        },
+        {
+          "name": "Register For Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"ticketCount\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventId}}/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["events", "{{eventId}}", "register"]
+            },
+            "description": "Registers a user for the event. 400 if the event is at the capacity of its venue, 404 if the event doesn't exist, 409 if the user is already registered."
+          }
+        },
+        {
+          "name": "List Attendees",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/{{eventId}}/attendees",
+              "host": ["{{baseUrl}}"],
+              "path": ["events", "{{eventId}}", "attendees"]
+            },
+            "description": "List the users registered for an event, with ticketCount. 404 if the event doesn't exist."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Venues",
+      "item": [
+        {
+          "name": "List Venues",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/venues",
+              "host": ["{{baseUrl}}"],
+              "path": ["venues"]
+            },
+            "description": "List all venues (used to populate the venue dropdown when creating an event)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            },
+            "description": "List all users (used for the 'logged in as' and organizer dropdowns)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stats",
+      "item": [
+        {
+          "name": "Top Venues",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stats/top-venues",
+              "host": ["{{baseUrl}}"],
+              "path": ["stats", "top-venues"]
+            },
+            "description": "Top 5 venues by number of registrations, computed via an aggregation pipeline."
+          }
+        }
+      ]
+    }
+  ]
+}
