@@ -78,7 +78,7 @@ function formatDate(iso) {
 
     <ul v-else class="event-list">
       <li v-for="event in events" :key="event._id" class="event-card">
-        <router-link :to="`/events/${event._id}`">
+        <router-link :to="`/events/${event._id}`" draggable="false">
           <h3>{{ event.title }}</h3>
         </router-link>
         <p>{{ formatDate(event.startsAt) }} · {{ event.venue?.name }} ({{ event.venue?.city }})</p>
