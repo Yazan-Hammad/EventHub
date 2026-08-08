@@ -8,20 +8,22 @@ seeded user you're acting as.
 ## Requirements
 
 - Node.js 18+ (developed and tested on Node v18.16.0, npm 9.5.1)
-- A MongoDB database — either a free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster
-  or a local MongoDB (e.g. via `docker run -d -p 27017:27017 mongo:7`)
+- Docker (for a local MongoDB — this is the setup this repo is configured for by default),
+  or a [MongoDB Atlas](https://www.mongodb.com/atlas) cluster if you'd rather use the cloud
 
 ## 1. Start MongoDB
 
-**Option A — Atlas (cloud):** create a free cluster, a database user, and add your IP (or
-`0.0.0.0/0` for simplicity during development) under Network Access. Copy the
-`mongodb+srv://...` connection string.
-
-**Option B — local via Docker:**
+**Option A — local via Docker (recommended, no account needed):**
 ```bash
-docker run -d --name eventhub-mongo -p 27017:27017 mongo:7
+docker compose up -d
 ```
-Then use `MONGODB_URI=mongodb://localhost:27017/eventhub`.
+This starts a `mongo:7` container on `localhost:27017` with a named volume, so data
+survives restarts. This is the easiest way to share/run this project across different
+machines — no per-person cloud account or credentials required.
+
+**Option B — Atlas (cloud):** create a free cluster, a database user, and add your IP (or
+`0.0.0.0/0` for simplicity during development) under Network Access. Copy the
+`mongodb+srv://...` connection string into `MONGODB_URI` instead.
 
 ## 2. Environment variables
 
@@ -102,21 +104,28 @@ Status codes: `400` for bad input (missing/invalid fields, bad ids, event at cap
   empty states, plus the "logged in as" user selector.
 - Seed script and this README.
 
+Verified end-to-end against a local Dockerized MongoDB: seeding, listing/searching/filtering
+events, event detail with venue/organizer/attendees, registering (including the capacity
+rejection and duplicate-registration 409), creating an event through the UI, and cascade
+delete removing a deleted event's registrations.
+
 ## What's skipped
 
 - Authentication (explicitly out of scope per the task).
-- All extra-credit items (Elasticsearch, JWT auth, waitlists, Docker Compose, automated
-  tests) — none were attempted, per the task's own recommendation to get the core solid
-  first.
+- All extra-credit items except a minimal `docker-compose.yml` for MongoDB only (added so
+  the project is easy to share/run across machines without a cloud account, per the task's
+  own tip that Docker is the fastest way to get Mongo running) — Elasticsearch, JWT auth,
+  waitlists, a full app+db docker-compose, and automated tests were not attempted, per the
+  task's recommendation to get the core solid first.
 - Editing an existing event has a backend endpoint (`PUT /api/events/:id`) but no dedicated
   frontend UI — only creation is wired up in the frontend.
 
 ## Known issues
 
-- End-to-end testing against a live database was blocked for part of development by a local
-  environment issue on the dev machine: Node's TLS handshake to MongoDB Atlas was being
-  interfered with by local security software, and Docker Desktop was slow/unreliable to
-  start for a local MongoDB fallback. The code itself does not depend on this — any working
-  `MONGODB_URI` should work. If you hit `MongooseServerSelectionError` on Atlas from Node
-  specifically (while other tools like `openssl`/browsers connect fine), check for
-  antivirus "HTTPS scanning" or a corporate VPN/proxy intercepting TLS.
+- None currently blocking. During development, Node's TLS handshake to MongoDB Atlas was
+  intermittently blocked by local security software on the dev machine (a corporate-style
+  antivirus/VPN doing HTTPS inspection) — `openssl`/browsers could complete a TLS handshake
+  fine, but Node's driver got an `SSL alert 80` from the server. Switching to a local
+  Dockerized MongoDB (see `docker-compose.yml`) sidesteps this entirely and is now the
+  default setup. If you hit `MongooseServerSelectionError` against Atlas specifically from
+  Node, that's the likely cause.
