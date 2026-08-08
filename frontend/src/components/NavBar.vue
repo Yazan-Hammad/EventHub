@@ -1,12 +1,21 @@
 <script setup>
-import { onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useCurrentUser } from '../composables/useCurrentUser';
 
-const { users, currentUserId, usersError, loadUsers } = useCurrentUser();
+const { users, currentUserId, currentUser, usersError, loadUsers, logout } = useCurrentUser();
+
+// No real auth yet — clicking "Login" just reveals the "who am I" picker as a stand-in.
+const showLogin = ref(false);
 
 onMounted(() => {
   if (!users.value.length) loadUsers();
 });
+
+function openLogin() {
+  usersError.value = '';
+  showLogin.value = true;
+  if (!users.value.length) loadUsers();
+}
 </script>
 
 <template>
@@ -19,14 +28,22 @@ onMounted(() => {
       <router-link to="/events/new">Create event</router-link>
     </div>
     <div class="navbar-user">
-      <label for="current-user">Logged in as</label>
-      <select id="current-user" v-model="currentUserId" :disabled="!users.length">
-        <option v-if="usersError" value="">Unavailable</option>
-        <option v-else-if="!users.length" value="">Loading...</option>
-        <option v-for="user in users" :key="user._id" :value="user._id">
-          {{ user.name }}
-        </option>
-      </select>
+      <template v-if="currentUser">
+        <span class="user-name">{{ currentUser.name }}</span>
+        <button type="button" @click="logout">Logout</button>
+      </template>
+      <template v-else-if="showLogin">
+        <span v-if="usersError" class="error">{{ usersError }}</span>
+        <select v-else v-model="currentUserId" :disabled="!users.length">
+          <option value="" disabled>{{ users.length ? 'Choose a user...' : 'Loading...' }}</option>
+          <option v-for="user in users" :key="user._id" :value="user._id">
+            {{ user.name }}
+          </option>
+        </select>
+      </template>
+      <template v-else>
+        <button type="button" @click="openLogin">Login</button>
+      </template>
     </div>
   </nav>
 </template>
@@ -66,9 +83,16 @@ onMounted(() => {
   gap: 0.5rem;
   font-size: 0.9rem;
 }
-.navbar-user select {
-  padding: 0.25rem 0.5rem;
+.navbar-user select,
+.navbar-user button {
+  padding: 0.25rem 0.6rem;
   border-radius: 4px;
   border: none;
+}
+.navbar-user .user-name {
+  font-weight: 600;
+}
+.navbar-user .error {
+  color: #fca5a5;
 }
 </style>
