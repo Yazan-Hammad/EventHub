@@ -15,10 +15,10 @@
 
 | COLLECTION   | FIELDS                                                              | Done? |
 | ------------ | ------------------------------------------------------------------- | ----- |
-| User         | name, email                                                         |       |
-| Venue        | name, city, address, capacity                                       |       |
-| Event        | title, description, startsAt, price, venue, organizer, categories[] |       |
-| Registration | user, event, ticketCount, createdAt                                 |       |
+| User         | name, email                                                         | T     |
+| Venue        | name, city, address, capacity                                       | T     |
+| Event        | title, description, startsAt, price, venue, organizer, categories[] | T     |
+| Registration | user, event, ticketCount, createdAt                                 | T     |
 
 ### Relations
 
