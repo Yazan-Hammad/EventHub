@@ -2,7 +2,7 @@
 import { onMounted } from 'vue';
 import { useCurrentUser } from '../composables/useCurrentUser';
 
-const { users, currentUserId, loadUsers } = useCurrentUser();
+const { users, currentUserId, usersError, loadUsers } = useCurrentUser();
 
 onMounted(() => {
   if (!users.value.length) loadUsers();
@@ -20,8 +20,9 @@ onMounted(() => {
     </div>
     <div class="navbar-user">
       <label for="current-user">Logged in as</label>
-      <select id="current-user" v-model="currentUserId">
-        <option v-if="!users.length" value="">Loading...</option>
+      <select id="current-user" v-model="currentUserId" :disabled="!users.length">
+        <option v-if="usersError" value="">Unavailable</option>
+        <option v-else-if="!users.length" value="">Loading...</option>
         <option v-for="user in users" :key="user._id" :value="user._id">
           {{ user.name }}
         </option>
