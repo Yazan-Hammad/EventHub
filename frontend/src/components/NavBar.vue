@@ -21,11 +21,11 @@ function openLogin() {
 <template>
   <nav class="navbar">
     <div class="navbar-brand">
-      <router-link to="/">EventHub</router-link>
+      <router-link to="/" draggable="false">EventHub</router-link>
     </div>
     <div class="navbar-links">
-      <router-link to="/">Events</router-link>
-      <router-link to="/events/new">Create event</router-link>
+      <router-link to="/" draggable="false">Events</router-link>
+      <router-link to="/events/new" draggable="false">Create event</router-link>
     </div>
     <div class="navbar-user">
       <template v-if="currentUser">
