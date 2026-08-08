@@ -30,13 +30,18 @@
 
 ## Text search
 
-`GET /api/events?q=...` uses a MongoDB **text index** on `title` and `description`
-(`eventSchema.index({ title: 'text', description: 'text' })`), queried with
-`{ $text: { $search: q } }`. This was chosen over a regex-based search because it's built
-into MongoDB (no extra infrastructure), handles multi-word queries and stemming
-out-of-the-box, and can rank by relevance if needed later — regex `LIKE`-style matching
-can't do any of that. Elasticsearch would be the natural next step for typo tolerance and
-highlighting, but that's explicitly extra credit in the task and wasn't attempted here.
+`GET /api/events?q=...` matches a case-insensitive **regex** against `title` and
+`description` (`{ $or: [{ title: /.../i }, { description: /.../i }] }`, with user input
+escaped so special characters like `+` or `(` can't break or inject into the pattern).
+
+This started as a MongoDB **text index** (`$text: { $search: q }`), which is the more
+"proper" full-text tool — it handles multi-word queries, stemming, and relevance ranking out
+of the box. It was switched to regex after testing showed the real requirement: a search box
+where typing a partial word (e.g. "Aust") should find "Austin Tech Meetup" as you type.
+`$text` only matches whole tokens (with stemming for things like plurals), not substrings, so
+partial input silently returned nothing. Regex trades away relevance ranking and stemming,
+but does the one thing this UI actually needs. Elasticsearch would be the real fix for
+typo tolerance and highlighting, but that's explicitly extra credit and wasn't attempted.
 
 ## What I'd improve with more time
 
