@@ -23,6 +23,10 @@
   This is an application-level cascade rather than a MongoDB transaction — simple, and
   sufficient for a single write path with no other writers touching the same event
   concurrently in this app.
+- **Event uniqueness**: a compound unique index on `{ title: 1, organizer: 1, startsAt: 1 }`
+  stops the same organizer from accidentally creating the same event twice (e.g. a
+  double-submitted form). Same pattern as Registration: enforced in MongoDB so it holds even
+  under concurrent requests, mapped to `409` in the `create`/`update` controllers.
 
 ## Text search
 
@@ -44,3 +48,6 @@ highlighting, but that's explicitly extra credit in the task and wasn't attempte
 - A few automated tests for the trickier business rules: capacity enforcement, duplicate
   registration, and cascade delete on event removal.
 - Debounced search-as-you-type on the events list instead of a submit button.
+- Replace the guest/Login-button stand-in with real authentication (the navbar and register
+  flow are already gated on "is someone logged in", so swapping in real sessions/JWT later
+  is mostly a matter of how `currentUserId` gets set, not a UI rework).

@@ -2,8 +2,10 @@
 
 A small events app. Organizers publish events at venues, and people register to attend.
 Built with Node.js + Express + MongoDB (Mongoose) on the backend and Vue 3 + Vite on the
-frontend. There is no login — a "logged in as" dropdown in the navbar lets you pick which
-seeded user you're acting as.
+frontend. There is no real authentication yet — the navbar defaults to a logged-out
+"guest" with a Login button; clicking it lets you pick which seeded user you're acting as
+(shown by name afterwards, with a Logout button). This stands in for the auth mechanism
+planned for later.
 
 ## Requirements
 
@@ -14,9 +16,11 @@ seeded user you're acting as.
 ## 1. Start MongoDB
 
 **Option A — local via Docker (recommended, no account needed):**
+
 ```bash
 docker compose up -d
 ```
+
 This starts a `mongo:7` container on `localhost:27017` with a named volume, so data
 survives restarts. This is the easiest way to share/run this project across different
 machines — no per-person cloud account or credentials required.
@@ -28,6 +32,7 @@ machines — no per-person cloud account or credentials required.
 ## 2. Environment variables
 
 Copy the example files and fill in your own values:
+
 ```bash
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
@@ -74,34 +79,40 @@ capacity-limit rejection by registering one more person.
 
 All routes are prefixed with `/api/v1`.
 
-| Method | Route | Description |
-| --- | --- | --- |
-| GET | `/api/v1/events` | List events. Query params: `q` (text search), `city`, `category`, `page`, `size` |
-| GET | `/api/v1/events/:id` | Get one event, with venue, organizer and categories |
-| POST | `/api/v1/events` | Create an event |
-| PUT | `/api/v1/events/:id` | Update an event |
-| DELETE | `/api/v1/events/:id` | Delete an event and its registrations |
-| POST | `/api/v1/events/:id/register` | Register a user for an event (`{ userId, ticketCount }`) |
-| GET | `/api/v1/events/:id/attendees` | List users registered for an event |
-| GET | `/api/v1/venues` | List venues |
-| GET | `/api/v1/users` | List users (for the dropdowns) |
-| GET | `/api/v1/stats/top-venues` | Top 5 venues by number of registrations (aggregation pipeline) |
+| Method | Route                          | Description                                                                      |
+| ------ | ------------------------------ | -------------------------------------------------------------------------------- |
+| GET    | `/api/v1/events`               | List events. Query params: `q` (text search), `city`, `category`, `page`, `size` |
+| GET    | `/api/v1/events/:id`           | Get one event, with venue, organizer and categories                              |
+| POST   | `/api/v1/events`               | Create an event                                                                  |
+| PUT    | `/api/v1/events/:id`           | Update an event                                                                  |
+| DELETE | `/api/v1/events/:id`           | Delete an event and its registrations                                            |
+| POST   | `/api/v1/events/:id/register`  | Register a user for an event (`{ userId, ticketCount }`)                         |
+| GET    | `/api/v1/events/:id/attendees` | List users registered for an event                                               |
+| GET    | `/api/v1/venues`               | List venues                                                                      |
+| GET    | `/api/v1/users`                | List users (for the dropdowns)                                                   |
+| GET    | `/api/v1/stats/top-venues`     | Top 5 venues by number of registrations (aggregation pipeline)                   |
 
-Status codes: `400` for bad input (missing/invalid fields, bad ids, event at capacity),
-`404` for a missing event/route, `409` for a duplicate registration.
+Status codes: `400` for bad input (missing/invalid fields, bad ids, event at/over capacity —
+the message includes how many tickets are left, or that none are left),
+`404` for a missing event/route, `409` for a duplicate registration or for creating/updating
+an event to the same title + organizer + start time as an existing one.
 
 ## What's completed
 
 - All four Mongoose models with the relationships as specified (Event references Venue and
   User/organizer; Registration is a separate collection with a compound unique index on
-  `user + event`).
+  `user + event`). Event also has a compound unique index on `title + organizer + startsAt`
+  to reject accidental duplicate events (409).
 - Every listed API endpoint, including the `top-venues` aggregation pipeline.
-- Capacity enforcement (looked up via the event's venue), duplicate-registration handling
-  (409, backed by the MongoDB unique index), and cascade delete of registrations when an
-  event is deleted.
-- Search (`q`), city and category filters, and pagination on `GET /api/events`.
+- Capacity enforcement (looked up via the event's venue, with the error message stating how
+  many tickets remain), duplicate-registration handling (409, backed by the MongoDB unique
+  index), and cascade delete of registrations when an event is deleted.
+- Search (`q`), city and category filters, and pagination on `GET /api/events` — `size` in
+  the response reflects the actual number of items returned (never more than `total`).
 - All three Vue pages (events list, event detail, create event) with loading, error and
-  empty states, plus the "logged in as" user selector.
+  empty states, plus a "logged in as" stand-in for auth: guests see a Login button; picking
+  a user shows their name and a Logout button. Registering requires being "logged in". Real
+  authentication is intentionally deferred (see Known issues).
 - Seed script and this README.
 
 Verified end-to-end against a local Dockerized MongoDB: seeding, listing/searching/filtering

@@ -14,4 +14,7 @@ const eventSchema = new mongoose.Schema({
 eventSchema.index({ title: 'text', description: 'text' });
 eventSchema.index({ categories: 1 });
 
+// Same organizer can't create two events with the same title at the same start time.
+eventSchema.index({ title: 1, organizer: 1, startsAt: 1 }, { unique: true });
+
 module.exports = mongoose.model('Event', eventSchema);

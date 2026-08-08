@@ -37,7 +37,7 @@ async function register() {
   registerError.value = '';
   registerSuccess.value = '';
   if (!currentUserId.value) {
-    registerError.value = 'Pick a user from "Logged in as" first.';
+    registerError.value = 'Please log in first.';
     return;
   }
   registering.value = true;
@@ -83,8 +83,8 @@ onMounted(() => {
       </ul>
 
       <section class="register-box">
-        <button :disabled="registering" @click="register">
-          {{ registering ? 'Registering...' : 'Register for this event' }}
+        <button :disabled="registering || !currentUserId" @click="register">
+          {{ !currentUserId ? 'Log in to register' : registering ? 'Registering...' : 'Register for this event' }}
         </button>
         <p v-if="registerError" class="error">{{ registerError }}</p>
         <p v-if="registerSuccess" class="success">{{ registerSuccess }}</p>

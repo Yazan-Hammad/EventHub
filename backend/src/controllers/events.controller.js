@@ -7,11 +7,27 @@ const ApiError = require('../utils/ApiError');
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
-async function listEvents(req, res) {
-  const { q, city, category, page = 1, size = 10 } = req.query;
+const MAX_PAGE_SIZE = 50;
+const DEFAULT_PAGE_SIZE = 10;
 
-  const pageNum = Math.max(1, parseInt(page, 10) || 1);
-  const sizeNum = Math.min(50, Math.max(1, parseInt(size, 10) || 10));
+// Parses page/size query params, falling back to defaults for anything missing,
+// non-numeric, or <= 0 — using `||` for this would wrongly treat an explicit "0" as unset.
+function parsePagination(page, size) {
+  const parsedPage = parseInt(page, 10);
+  const parsedSize = parseInt(size, 10);
+
+  const pageNum = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+  const sizeNum = Number.isInteger(parsedSize) && parsedSize > 0
+    ? Math.min(parsedSize, MAX_PAGE_SIZE)
+    : DEFAULT_PAGE_SIZE;
+
+  return { pageNum, sizeNum };
+}
+
+async function listEvents(req, res) {
+  const { q, city, category, page, size } = req.query;
+
+  const { pageNum, sizeNum } = parsePagination(page, size);
 
   const filter = {};
 
@@ -41,7 +57,7 @@ async function listEvents(req, res) {
   res.json({
     data: events,
     page: pageNum,
-    size: sizeNum,
+    size: events.length,
     total,
     totalPages: Math.ceil(total / sizeNum) || 1,
   });
@@ -94,7 +110,15 @@ async function createEvent(req, res) {
   await validateEventPayload(req.body);
   const { title, description, startsAt, price, venue, organizer, categories = [] } = req.body;
 
-  const event = await Event.create({ title, description, startsAt, price, venue, organizer, categories });
+  let event;
+  try {
+    event = await Event.create({ title, description, startsAt, price, venue, organizer, categories });
+  } catch (err) {
+    if (err.code === 11000) {
+      throw new ApiError(409, 'An event with the same title, organizer and start time already exists');
+    }
+    throw err;
+  }
   res.status(201).json(event);
 }
 
@@ -108,7 +132,15 @@ async function updateEvent(req, res) {
   await validateEventPayload(req.body, { partial: true });
 
   Object.assign(event, req.body);
-  await event.save();
+
+  try {
+    await event.save();
+  } catch (err) {
+    if (err.code === 11000) {
+      throw new ApiError(409, 'An event with the same title, organizer and start time already exists');
+    }
+    throw err;
+  }
 
   res.json(event);
 }
@@ -145,9 +177,13 @@ async function registerForEvent(req, res) {
     { $group: { _id: null, total: { $sum: '$ticketCount' } } },
   ]);
   const alreadyRegistered = existingTickets[0]?.total || 0;
+  const available = event.venue.capacity - alreadyRegistered;
 
-  if (alreadyRegistered + ticketCount > event.venue.capacity) {
-    throw new ApiError(400, 'Event has reached the capacity of its venue');
+  if (ticketCount > available) {
+    if (available <= 0) {
+      throw new ApiError(400, 'No tickets left for this event');
+    }
+    throw new ApiError(400, `Only ${available} ticket(s) left for this event`);
   }
 
   let registration;
