@@ -24,6 +24,12 @@ function parsePagination(page, size) {
   return { pageNum, sizeNum };
 }
 
+// Escapes regex metacharacters so user input is always treated as a literal
+// substring — otherwise something like "c++" would throw an invalid regex error.
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 async function listEvents(req, res) {
   const { q, city, category, page, size } = req.query;
 
@@ -32,7 +38,7 @@ async function listEvents(req, res) {
   const filter = {};
 
   if (city) {
-    const venuesInCity = await Venue.find({ city: new RegExp(`^${city}$`, 'i') }).select('_id');
+    const venuesInCity = await Venue.find({ city: new RegExp(`^${escapeRegex(city)}$`, 'i') }).select('_id');
     filter.venue = { $in: venuesInCity.map((v) => v._id) };
   }
 
@@ -41,7 +47,8 @@ async function listEvents(req, res) {
   }
 
   if (q) {
-    filter.$text = { $search: q };
+    const searchRegex = new RegExp(escapeRegex(q), 'i');
+    filter.$or = [{ title: searchRegex }, { description: searchRegex }];
   }
 
   const [events, total] = await Promise.all([
