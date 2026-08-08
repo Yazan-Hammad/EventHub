@@ -10,8 +10,8 @@ const eventSchema = new mongoose.Schema({
   categories: { type: [String], default: [] },
 });
 
-// Text index powers the `q` search across title + description (see NOTES.md).
-eventSchema.index({ title: 'text', description: 'text' });
+// `q` search is a case-insensitive regex against title/description (see NOTES.md) —
+// no index backs it, since a substring match can't use a btree/text index anyway.
 eventSchema.index({ categories: 1 });
 
 // Same organizer can't create two events with the same title at the same start time.
