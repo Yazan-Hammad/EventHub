@@ -43,18 +43,12 @@ The Docker setup above is all you need to just run the app. If you'd rather run 
 backend/frontend directly with npm instead (for hot reload while making changes), you'll
 need Node.js 18+ and npm, plus a MongoDB instance:
 
-**Option A — local via Docker (recommended, no account needed):**
-
 ```bash
 docker compose up -d mongo
 ```
 
 This starts just the `mongo:7` container on `localhost:27017` with a named volume, so data
 survives restarts.
-
-**Option B — Atlas (cloud):** create a free cluster, a database user, and add your IP (or
-`0.0.0.0/0` for simplicity during development) under Network Access. Copy the
-`mongodb+srv://...` connection string into `MONGODB_URI` instead.
 
 ### Environment variables
 
@@ -68,7 +62,7 @@ cp frontend/.env.example frontend/.env
 `backend/.env`:
 | Variable | Description |
 | --- | --- |
-| `MONGODB_URI` | Full MongoDB connection string (Atlas or local) |
+| `MONGODB_URI` | MongoDB connection string (defaults to the local Docker container) |
 | `PORT` | Port the API listens on (default `5000`) |
 
 `frontend/.env`:
@@ -170,10 +164,4 @@ re-seed or duplicate data.
 
 ## Known issues
 
-- None currently blocking. During development, Node's TLS handshake to MongoDB Atlas was
-  intermittently blocked by local security software on the dev machine (a corporate-style
-  antivirus/VPN doing HTTPS inspection) — `openssl`/browsers could complete a TLS handshake
-  fine, but Node's driver got an `SSL alert 80` from the server. Switching to a local
-  Dockerized MongoDB (see `docker-compose.yml`) sidesteps this entirely and is now the
-  default setup. If you hit `MongooseServerSelectionError` against Atlas specifically from
-  Node, that's the likely cause.
+- None currently blocking.
