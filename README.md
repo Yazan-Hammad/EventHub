@@ -21,9 +21,11 @@ account, no manual setup.
 
 That's it — the database is automatically seeded with demo data on first boot, so the app
 is immediately usable (events, venues, users all populated). To stop everything:
+
 ```bash
 docker compose down
 ```
+
 (add `-v` to that command to also wipe the database and start fresh next time.)
 
 <details>
@@ -101,6 +103,7 @@ at a 3-capacity venue with 2 tickets already taken, so you can immediately test 
 capacity-limit rejection by registering one more person.
 
 It runs in two ways:
+
 - **Automatically** on backend startup, but only if the database is empty (checked via a
   document count) — this is what makes the Docker quick start need zero manual steps, and
   it's a no-op on every later restart since the data already exists.
