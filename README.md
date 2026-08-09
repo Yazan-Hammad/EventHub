@@ -7,29 +7,50 @@ frontend. There is no real authentication yet — the navbar defaults to a logge
 (shown by name afterwards, with a Logout button). This stands in for the auth mechanism
 planned for later.
 
-## Requirements
+## Run the app (3 steps)
 
-- Node.js 18+ (developed and tested on Node v18.16.0, npm 9.5.1)
-- Docker (for a local MongoDB — this is the setup this repo is configured for by default),
-  or a [MongoDB Atlas](https://www.mongodb.com/atlas) cluster if you'd rather use the cloud
+Only requirement: **Docker Desktop** installed and running. No Node.js, no MongoDB
+account, no manual setup.
 
-## 1. Start MongoDB
+1. Clone the repo and open a terminal in its root folder (where `docker-compose.yml` is).
+2. Run:
+   ```bash
+   docker compose up -d --build
+   ```
+3. Open **[http://localhost:5173](http://localhost:5173)**.
 
-**Option A — local via Docker (recommended, no account needed):**
+That's it — the database is automatically seeded with demo data on first boot, so the app
+is immediately usable (events, venues, users all populated). To stop everything:
 
 ```bash
-docker compose up -d
+docker compose down
 ```
 
-This starts a `mongo:7` container on `localhost:27017` with a named volume, so data
-survives restarts. This is the easiest way to share/run this project across different
-machines — no per-person cloud account or credentials required.
+(add `-v` to that command to also wipe the database and start fresh next time.)
 
-**Option B — Atlas (cloud):** create a free cluster, a database user, and add your IP (or
-`0.0.0.0/0` for simplicity during development) under Network Access. Copy the
-`mongodb+srv://...` connection string into `MONGODB_URI` instead.
+<details>
+<summary>What just started</summary>
 
-## 2. Environment variables
+- Frontend: [http://localhost:5173](http://localhost:5173)
+- API: [http://localhost:5000/api/v1](http://localhost:5000/api/v1)
+- MongoDB: `localhost:27017` (a named volume persists data across restarts)
+
+</details>
+
+## Local development (without Docker for backend/frontend)
+
+The Docker setup above is all you need to just run the app. If you'd rather run the
+backend/frontend directly with npm instead (for hot reload while making changes), you'll
+need Node.js 18+ and npm, plus a MongoDB instance:
+
+```bash
+docker compose up -d mongo
+```
+
+This starts just the `mongo:7` container on `localhost:27017` with a named volume, so data
+survives restarts.
+
+### Environment variables
 
 Copy the example files and fill in your own values:
 
@@ -41,7 +62,7 @@ cp frontend/.env.example frontend/.env
 `backend/.env`:
 | Variable | Description |
 | --- | --- |
-| `MONGODB_URI` | Full MongoDB connection string (Atlas or local) |
+| `MONGODB_URI` | MongoDB connection string (defaults to the local Docker container) |
 | `PORT` | Port the API listens on (default `5000`) |
 
 `frontend/.env`:
@@ -49,7 +70,7 @@ cp frontend/.env.example frontend/.env
 | --- | --- |
 | `VITE_API_URL` | Base URL of the API, including version prefix (default `http://localhost:5000/api/v1`) |
 
-## 3. Install and run the backend
+### Install and run the backend
 
 ```bash
 cd backend
@@ -58,7 +79,7 @@ npm run seed   # populates users, venues, events and a few registrations
 npm run dev    # starts the API on http://localhost:5000
 ```
 
-## 4. Install and run the frontend
+### Install and run the frontend
 
 ```bash
 cd frontend
@@ -70,10 +91,18 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## Seed data
 
-`backend/scripts/seed.js` clears the four collections and inserts 5 users, 4 venues and 6
+`backend/src/seedData.js` clears the four collections and inserts 5 users, 4 venues and 6
 events, plus a handful of registrations. One event ("Node.js Deep Dive Workshop") is seeded
 at a 3-capacity venue with 2 tickets already taken, so you can immediately test the
 capacity-limit rejection by registering one more person.
+
+It runs in two ways:
+
+- **Automatically** on backend startup, but only if the database is empty (checked via a
+  document count) — this is what makes the Docker quick start need zero manual steps, and
+  it's a no-op on every later restart since the data already exists.
+- **On demand** via `npm run seed` (in `backend/`) — this always clears and reseeds,
+  useful for resetting back to a known state during local development.
 
 ## API endpoints
 
@@ -114,29 +143,25 @@ an event to the same title + organizer + start time as an existing one.
   a user shows their name and a Logout button. Registering requires being "logged in". Real
   authentication is intentionally deferred (see Known issues).
 - Seed script and this README.
+- Full-stack `docker-compose.yml` (MongoDB + backend + frontend via nginx), with the
+  backend auto-seeding an empty database on first boot — cloning the repo and running
+  `docker compose up -d --build` needs no other setup.
 
-Verified end-to-end against a local Dockerized MongoDB: seeding, listing/searching/filtering
+Verified end-to-end, both via `npm run dev` against a local Dockerized MongoDB and via the
+full `docker-compose` stack: seeding (automatic and on-demand), listing/searching/filtering
 events, event detail with venue/organizer/attendees, registering (including the capacity
-rejection and duplicate-registration 409), creating an event through the UI, and cascade
-delete removing a deleted event's registrations.
+rejection and duplicate-registration 409), creating an event through the UI, cascade delete
+removing a deleted event's registrations, and that restarting the Docker stack doesn't
+re-seed or duplicate data.
 
 ## What's skipped
 
 - Authentication (explicitly out of scope per the task).
-- All extra-credit items except a minimal `docker-compose.yml` for MongoDB only (added so
-  the project is easy to share/run across machines without a cloud account, per the task's
-  own tip that Docker is the fastest way to get Mongo running) — Elasticsearch, JWT auth,
-  waitlists, a full app+db docker-compose, and automated tests were not attempted, per the
-  task's recommendation to get the core solid first.
+- Remaining extra-credit items: Elasticsearch, JWT auth, waitlists, and automated tests were
+  not attempted, per the task's recommendation to get the core solid first.
 - Editing an existing event has a backend endpoint (`PUT /api/events/:id`) but no dedicated
   frontend UI — only creation is wired up in the frontend.
 
 ## Known issues
 
-- None currently blocking. During development, Node's TLS handshake to MongoDB Atlas was
-  intermittently blocked by local security software on the dev machine (a corporate-style
-  antivirus/VPN doing HTTPS inspection) — `openssl`/browsers could complete a TLS handshake
-  fine, but Node's driver got an `SSL alert 80` from the server. Switching to a local
-  Dockerized MongoDB (see `docker-compose.yml`) sidesteps this entirely and is now the
-  default setup. If you hit `MongooseServerSelectionError` against Atlas specifically from
-  Node, that's the likely cause.
+- None currently blocking.
