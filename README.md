@@ -1,11 +1,16 @@
 # EventHub
 
-A small events app. Organizers publish events at venues, and people register to attend.
-Built with Node.js + Express + MongoDB (Mongoose) on the backend and Vue 3 + Vite on the
-frontend. There is no real authentication yet — the navbar defaults to a logged-out
-"guest" with a Login button; clicking it lets you pick which seeded user you're acting as
-(shown by name afterwards, with a Logout button). This stands in for the auth mechanism
-planned for later.
+## What the app does
+
+EventHub is a small events platform: organizers publish events tied to a venue, and people
+browse, search and register to attend. It tracks users, venues, events and registrations,
+enforces each venue's capacity when someone registers, and surfaces the top venues by
+registration count. Built with Node.js + Express + MongoDB (Mongoose) on the backend and
+Vue 3 + Vite on the frontend.
+
+There is no real authentication yet — the navbar defaults to a logged-out "guest" with a
+Login button; clicking it lets you pick which seeded user you're acting as (shown by name
+afterwards, with a Logout button). This stands in for the auth mechanism planned for later.
 
 ## Run the app (3 steps)
 
