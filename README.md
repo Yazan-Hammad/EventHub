@@ -7,35 +7,39 @@ frontend. There is no real authentication yet — the navbar defaults to a logge
 (shown by name afterwards, with a Logout button). This stands in for the auth mechanism
 planned for later.
 
-## Requirements
+## Run the app (3 steps)
 
-- Docker (for the quick start below — this is the easiest way to run or share the project)
-- Node.js 18+ and npm, only if you want to run the backend/frontend outside Docker for
-  local development (hot reload, debugging, etc.)
+Only requirement: **Docker Desktop** installed and running. No Node.js, no MongoDB
+account, no manual setup.
 
-## Quick start — run everything with Docker
+1. Clone the repo and open a terminal in its root folder (where `docker-compose.yml` is).
+2. Run:
+   ```bash
+   docker compose up -d --build
+   ```
+3. Open **[http://localhost:5173](http://localhost:5173)**.
 
+That's it — the database is automatically seeded with demo data on first boot, so the app
+is immediately usable (events, venues, users all populated). To stop everything:
 ```bash
-docker compose up -d --build
+docker compose down
 ```
+(add `-v` to that command to also wipe the database and start fresh next time.)
 
-This builds and starts all three pieces together: MongoDB, the API, and the frontend
-(served via nginx). **No manual setup steps required** — the backend automatically seeds
-the database with demo data on its first boot if it's empty (see "Seed data" below), so
-there's nothing else to configure or run.
+<details>
+<summary>What just started</summary>
 
 - Frontend: [http://localhost:5173](http://localhost:5173)
 - API: [http://localhost:5000/api/v1](http://localhost:5000/api/v1)
 - MongoDB: `localhost:27017` (a named volume persists data across restarts)
 
-This is the setup to use if you're sharing this project with someone else — clone the
-repo, run one command, and it's fully working with sample data. Run `docker compose down`
-to stop everything (add `-v` to also wipe the database volume and start fresh next time).
+</details>
 
 ## Local development (without Docker for backend/frontend)
 
-If you'd rather run the backend/frontend directly with npm (for hot reload while making
-changes), you still need a MongoDB instance:
+The Docker setup above is all you need to just run the app. If you'd rather run the
+backend/frontend directly with npm instead (for hot reload while making changes), you'll
+need Node.js 18+ and npm, plus a MongoDB instance:
 
 **Option A — local via Docker (recommended, no account needed):**
 
