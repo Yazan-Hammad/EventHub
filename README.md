@@ -120,16 +120,16 @@ All routes are prefixed with `/api/v1`.
 | POST   | `/api/v1/events`               | Create an event                                                                  |
 | PUT    | `/api/v1/events/:id`           | Update an event                                                                  |
 | DELETE | `/api/v1/events/:id`           | Delete an event and its registrations                                            |
-| POST   | `/api/v1/events/:id/register`  | Register a user for an event (`{ userId, ticketCount }`)                         |
+| POST   | `/api/v1/events/:id/register`  | Register a user for an event (`{ userId, ticketCount }`); waitlists if full      |
 | GET    | `/api/v1/events/:id/attendees` | List users registered for an event                                               |
 | GET    | `/api/v1/venues`               | List venues                                                                      |
 | GET    | `/api/v1/users`                | List users (for the dropdowns)                                                   |
 | GET    | `/api/v1/stats/top-venues`     | Top 5 venues by number of registrations (aggregation pipeline)                   |
 
-Status codes: `400` for bad input (missing/invalid fields, bad ids, event at/over capacity —
-the message includes how many tickets are left, or that none are left),
-`404` for a missing event/route, `409` for a duplicate registration or for creating/updating
-an event to the same title + organizer + start time as an existing one.
+Status codes: `400` for bad input (missing/invalid fields, bad ids), `404` for a missing
+event/route, `409` for a duplicate registration or for creating/updating an event to the
+same title + organizer + start time as an existing one. Registering for a full event no
+longer returns an error — it succeeds with `status: "waitlisted"` instead (see below).
 
 ## What's completed
 
@@ -138,9 +138,11 @@ an event to the same title + organizer + start time as an existing one.
   `user + event`). Event also has a compound unique index on `title + organizer + startsAt`
   to reject accidental duplicate events (409).
 - Every listed API endpoint, including the `top-venues` aggregation pipeline.
-- Capacity enforcement (looked up via the event's venue, with the error message stating how
-  many tickets remain), duplicate-registration handling (409, backed by the MongoDB unique
-  index), and cascade delete of registrations when an event is deleted.
+- Capacity handling as a **waitlist** (extra credit): registering for a full event succeeds
+  with `status: "waitlisted"` and a `waitlistPosition` instead of being rejected. Capacity
+  is checked against confirmed registrations only. Duplicate-registration handling (409,
+  backed by the MongoDB unique index) and cascade delete of registrations when an event is
+  deleted are unchanged.
 - Search (`q`), city and category filters, and pagination on `GET /api/events` — `size` in
   the response reflects the actual number of items returned (never more than `total`).
 - All three Vue pages (events list, event detail, create event) with loading, error and
@@ -154,18 +156,21 @@ an event to the same title + organizer + start time as an existing one.
 
 Verified end-to-end, both via `npm run dev` against a local Dockerized MongoDB and via the
 full `docker-compose` stack: seeding (automatic and on-demand), listing/searching/filtering
-events, event detail with venue/organizer/attendees, registering (including the capacity
-rejection and duplicate-registration 409), creating an event through the UI, cascade delete
-removing a deleted event's registrations, and that restarting the Docker stack doesn't
-re-seed or duplicate data.
+events, event detail with venue/organizer/attendees, registering (including waitlisting on
+a full event and duplicate-registration 409), creating an event through the UI, cascade
+delete removing a deleted event's registrations, and that restarting the Docker stack
+doesn't re-seed or duplicate data.
 
 ## What's skipped
 
 - Authentication (explicitly out of scope per the task).
-- Remaining extra-credit items: Elasticsearch, JWT auth, waitlists, and automated tests were
-  not attempted, per the task's recommendation to get the core solid first.
+- Remaining extra-credit items: Elasticsearch and JWT auth were not attempted, per the
+  task's recommendation to get the core solid first.
+- Automated tests.
 - Editing an existing event has a backend endpoint (`PUT /api/events/:id`) but no dedicated
   frontend UI — only creation is wired up in the frontend.
+- Auto-promoting waitlisted registrations when a confirmed spot frees up — there's no
+  cancel/unregister endpoint yet, so nothing currently frees a spot (see NOTES.md).
 
 ## Known issues
 

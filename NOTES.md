@@ -27,6 +27,14 @@
   stops the same organizer from accidentally creating the same event twice (e.g. a
   double-submitted form). Same pattern as Registration: enforced in MongoDB so it holds even
   under concurrent requests, mapped to `409` in the `create`/`update` controllers.
+- **Waitlist**: rather than a separate collection, a full event is handled with a `status`
+  field (`confirmed` | `waitlisted`) directly on `Registration`. Capacity math only sums
+  `confirmed` tickets, so a registration that doesn't fit becomes `waitlisted` instead of
+  being rejected. The unique `{ user, event }` index still applies regardless of status —
+  one registration per person per event, whichever bucket it lands in. A waitlisted
+  registration's position is computed on demand (count of earlier waitlisted registrations
+  for that event, by `_id` order) rather than stored, since it shifts as other people
+  register — storing it would mean re-writing every later entry whenever one is removed.
 
 ## Text search
 
@@ -45,6 +53,10 @@ typo tolerance and highlighting, but that's explicitly extra credit and wasn't a
 
 ## What I'd improve with more time
 
+- Auto-promoting the next waitlisted registration to `confirmed` when a confirmed spot
+  frees up. There's no cancel/unregister endpoint in this app yet, so nothing currently
+  frees a confirmed spot — this is a natural companion feature once cancellation exists,
+  not built speculatively ahead of it.
 - A dedicated "edit event" screen in the frontend (the API supports `PUT`, the UI doesn't
   yet expose it).
 - Server-side request validation with a schema library (e.g. Zod or Joi) instead of the

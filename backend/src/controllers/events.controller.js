@@ -179,29 +179,40 @@ async function registerForEvent(req, res) {
   const user = await User.findById(userId);
   if (!user) throw new ApiError(400, 'userId does not reference an existing user');
 
-  const existingTickets = await Registration.aggregate([
-    { $match: { event: event._id } },
+  // Only confirmed registrations count against capacity — a full event no longer
+  // rejects new registrations, it waitlists them instead. $ne 'waitlisted' (rather
+  // than $eq 'confirmed') so registrations from before this field existed — which
+  // have no status at all — still count as confirmed, matching the schema default.
+  const confirmedTickets = await Registration.aggregate([
+    { $match: { event: event._id, status: { $ne: 'waitlisted' } } },
     { $group: { _id: null, total: { $sum: '$ticketCount' } } },
   ]);
-  const alreadyRegistered = existingTickets[0]?.total || 0;
-  const available = event.venue.capacity - alreadyRegistered;
-
-  if (ticketCount > available) {
-    if (available <= 0) {
-      throw new ApiError(400, 'No tickets left for this event');
-    }
-    throw new ApiError(400, `Only ${available} ticket(s) left for this event`);
-  }
+  const confirmedCount = confirmedTickets[0]?.total || 0;
+  const available = event.venue.capacity - confirmedCount;
+  const status = ticketCount <= available ? 'confirmed' : 'waitlisted';
 
   let registration;
   try {
-    registration = await Registration.create({ user: userId, event: id, ticketCount });
+    registration = await Registration.create({ user: userId, event: id, ticketCount, status });
   } catch (err) {
     if (err.code === 11000) throw new ApiError(409, 'User is already registered for this event');
     throw err;
   }
 
-  res.status(201).json(registration);
+  let waitlistPosition;
+  if (status === 'waitlisted') {
+    const earlierWaitlisted = await Registration.countDocuments({
+      event: id,
+      status: 'waitlisted',
+      _id: { $lt: registration._id },
+    });
+    waitlistPosition = earlierWaitlisted + 1;
+  }
+
+  res.status(201).json({
+    ...registration.toObject(),
+    ...(waitlistPosition && { waitlistPosition }),
+  });
 }
 
 async function listAttendees(req, res) {
