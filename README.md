@@ -105,7 +105,6 @@ the waitlist, so the waitlist feature is visible immediately.
 
 For simplicity in demonstration, all seeded users (`ava`, `liam`, `sofia`, `noah`, `maya`) are set up with **username** equal to their first name and a default password of **`12345`** for Organizer login via JWT. Attendees can also log in passwordlessly using Email-OTP.
 
-
 It runs in two ways:
 
 - **Automatically** on backend startup, but only if the database is empty (checked via a
@@ -118,22 +117,25 @@ It runs in two ways:
 
 All routes are prefixed with `/api/v1`.
 
-| Method | Route                          | Description                                                                      |
-| ------ | ------------------------------ | -------------------------------------------------------------------------------- |
-| GET    | `/api/v1/events`               | List events. Query params: `q` (text search), `city`, `category`, `page`, `size` |
-| GET    | `/api/v1/events/:id`           | Get one event, with venue, organizer and categories                              |
-| POST   | `/api/v1/events`               | Create an event                                                                  |
-| PUT    | `/api/v1/events/:id`           | Update an event                                                                  |
-| DELETE | `/api/v1/events/:id`           | Delete an event and its registrations                                            |
-| POST   | `/api/v1/events/:id/register`  | Register the logged-in user (`{ ticketCount }`); requires auth; waitlists if full |
-| GET    | `/api/v1/events/:id/attendees` | List users registered for an event                                               |
-| GET    | `/api/v1/venues`               | List venues                                                                      |
-| GET    | `/api/v1/users`                | List users (for the organizer dropdown)                                          |
-| GET    | `/api/v1/stats/top-venues`     | Top 5 venues by number of registrations (aggregation pipeline)                   |
-| POST   | `/api/v1/auth/request-otp`     | Send a 6-digit code to an email (`{ email }`)                                    |
-| POST   | `/api/v1/auth/verify-otp`      | Verify the code (`{ email, code }`), returns `{ token, user }`                   |
-| GET    | `/api/v1/auth/me`              | Current logged-in user; requires auth                                            |
-| POST   | `/api/v1/auth/logout`          | Invalidate the current session; requires auth                                    |
+| Method | Route                             | Description                                                                       |
+| ------ | --------------------------------- | --------------------------------------------------------------------------------- |
+| GET    | `/api/v1/events`                  | List events. Query params: `q` (text search), `city`, `category`, `page`, `size`  |
+| GET    | `/api/v1/events/:id`              | Get one event, with venue, organizer and categories                               |
+| POST   | `/api/v1/events`                  | Create an event                                                                   |
+| PUT    | `/api/v1/events/:id`              | Update an event                                                                   |
+| DELETE | `/api/v1/events/:id`              | Delete an event and its registrations                                             |
+| POST   | `/api/v1/events/:id/register`     | Register the logged-in user (`{ ticketCount }`); requires auth; waitlists if full |
+| GET    | `/api/v1/events/:id/attendees`    | List users registered for an event                                                |
+| GET    | `/api/v1/venues`                  | List venues                                                                       |
+| GET    | `/api/v1/users`                   | List users (for the organizer dropdown)                                           |
+| GET    | `/api/v1/stats/top-venues`        | Top 5 venues by number of registrations (aggregation pipeline)                    |
+| POST   | `/api/v1/auth/organizer/register` | Register a new organizer account (`{ username, email, password, name }`)          |
+| POST   | `/api/v1/auth/organizer/login`    | Login as an organizer (`{ username, password }`), returns `{ token, user }`       |
+| POST   | `/api/v1/auth/request-otp`        | Send a 6-digit code to an email (`{ email }`)                                     |
+| POST   | `/api/v1/auth/verify-otp`         | Verify the code (`{ email, code }`), returns `{ token, user }`                    |
+| GET    | `/api/v1/auth/me`                 | Current logged-in user; requires auth                                             |
+| POST   | `/api/v1/auth/logout`             | Invalidate the current session; requires auth                                     |
+| GET    | `/health`                         | App health check endpoint                                                         |
 
 "Requires auth" means an `Authorization: Bearer <token>` header from `verify-otp`.
 
