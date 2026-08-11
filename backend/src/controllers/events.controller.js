@@ -167,17 +167,14 @@ async function deleteEvent(req, res) {
 
 async function registerForEvent(req, res) {
   const { id } = req.params;
-  const { userId, ticketCount = 1 } = req.body;
+  const { ticketCount = 1 } = req.body;
+  const userId = req.user._id;
 
   if (!isValidId(id)) throw new ApiError(400, `Invalid id: ${id}`);
-  if (!userId || !isValidId(userId)) throw new ApiError(400, 'userId must be a valid id');
   if (!Number.isInteger(ticketCount) || ticketCount < 1) throw new ApiError(400, 'ticketCount must be a positive integer');
 
   const event = await Event.findById(id).populate('venue', 'capacity');
   if (!event) throw new ApiError(404, 'Event not found');
-
-  const user = await User.findById(userId);
-  if (!user) throw new ApiError(400, 'userId does not reference an existing user');
 
   // Only confirmed registrations count against capacity — a full event no longer
   // rejects new registrations, it waitlists them instead. $ne 'waitlisted' (rather

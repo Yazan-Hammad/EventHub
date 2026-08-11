@@ -2,10 +2,10 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import client from '../api/client';
-import { useCurrentUser } from '../composables/useCurrentUser';
+import { useAuth } from '../composables/useAuth';
 
 const route = useRoute();
-const { currentUserId, users, loadUsers } = useCurrentUser();
+const { isLoggedIn, authError, otpPreviewUrl, requestOtp, verifyOtp } = useAuth();
 
 const event = ref(null);
 const attendees = ref([]);
@@ -15,7 +15,15 @@ const error = ref('');
 const confirmedAttendees = computed(() => attendees.value.filter((r) => r.status !== 'waitlisted'));
 const waitlistedAttendees = computed(() => attendees.value.filter((r) => r.status === 'waitlisted'));
 
+const ticketCount = ref(1);
+// 'idle' | 'email' | 'otp' — the email/otp steps only appear if you're not already
+// logged in when you click Register.
+const registerStep = ref('idle');
+const email = ref('');
+const code = ref('');
 const registering = ref(false);
+const sendingCode = ref(false);
+const verifyingCode = ref(false);
 const registerError = ref('');
 const registerSuccess = ref('');
 
@@ -36,18 +44,11 @@ async function fetchEvent() {
   }
 }
 
-async function register() {
-  registerError.value = '';
-  registerSuccess.value = '';
-  if (!currentUserId.value) {
-    registerError.value = 'Please log in first.';
-    return;
-  }
+async function doRegister() {
   registering.value = true;
   try {
     const { data } = await client.post(`/events/${route.params.id}/register`, {
-      userId: currentUserId.value,
-      ticketCount: 1,
+      ticketCount: ticketCount.value,
     });
     registerSuccess.value = data.status === 'waitlisted'
       ? `This event is full — you've been added to the waitlist (position ${data.waitlistPosition}).`
@@ -60,14 +61,45 @@ async function register() {
   }
 }
 
+async function startRegister() {
+  registerError.value = '';
+  registerSuccess.value = '';
+  if (isLoggedIn.value) {
+    await doRegister();
+    return;
+  }
+  registerStep.value = 'email';
+}
+
+async function sendCode() {
+  registerError.value = '';
+  sendingCode.value = true;
+  const ok = await requestOtp(email.value);
+  sendingCode.value = false;
+  if (ok) registerStep.value = 'otp';
+  else registerError.value = authError.value;
+}
+
+async function confirmCode() {
+  registerError.value = '';
+  verifyingCode.value = true;
+  const ok = await verifyOtp(email.value, code.value);
+  verifyingCode.value = false;
+  if (!ok) {
+    registerError.value = authError.value;
+    return;
+  }
+  registerStep.value = 'idle';
+  email.value = '';
+  code.value = '';
+  await doRegister();
+}
+
 function formatDate(iso) {
   return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-onMounted(() => {
-  if (!users.value.length) loadUsers();
-  fetchEvent();
-});
+onMounted(fetchEvent);
 </script>
 
 <template>
@@ -88,9 +120,39 @@ onMounted(() => {
       </ul>
 
       <section class="register-box">
-        <button :disabled="registering || !currentUserId" @click="register">
-          {{ !currentUserId ? 'Log in to register' : registering ? 'Registering...' : 'Register for this event' }}
-        </button>
+        <label class="ticket-label">
+          Tickets
+          <input
+            v-model.number="ticketCount"
+            type="number"
+            min="1"
+            :disabled="registerStep !== 'idle'"
+          />
+        </label>
+
+        <template v-if="registerStep === 'idle'">
+          <button :disabled="registering" @click="startRegister">
+            {{ registering ? 'Registering...' : 'Register for this event' }}
+          </button>
+        </template>
+
+        <template v-else-if="registerStep === 'email'">
+          <p class="hint">Enter your email to verify and complete registration.</p>
+          <input v-model="email" type="email" placeholder="you@example.com" />
+          <button :disabled="sendingCode || !email" @click="sendCode">
+            {{ sendingCode ? 'Sending...' : 'Send code' }}
+          </button>
+        </template>
+
+        <template v-else-if="registerStep === 'otp'">
+          <p class="hint">Enter the 6-digit code sent to {{ email }}.</p>
+          <a v-if="otpPreviewUrl" :href="otpPreviewUrl" target="_blank" rel="noopener">View email</a>
+          <input v-model="code" type="text" inputmode="numeric" maxlength="6" placeholder="123456" />
+          <button :disabled="verifyingCode || !code" @click="confirmCode">
+            {{ verifyingCode ? 'Verifying...' : 'Verify' }}
+          </button>
+        </template>
+
         <p v-if="registerError" class="error">{{ registerError }}</p>
         <p v-if="registerSuccess" class="success">{{ registerSuccess }}</p>
       </section>
@@ -131,6 +193,34 @@ onMounted(() => {
   background: white;
   border: 1px solid #e4e7eb;
   border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.ticket-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+.ticket-label input {
+  width: 70px;
+  padding: 0.3rem;
+  border: 1px solid #cbd2d9;
+  border-radius: 4px;
+}
+.register-box input[type='email'],
+.register-box input[type='text'] {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #cbd2d9;
+  border-radius: 4px;
+  width: 220px;
+}
+.hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #52606d;
 }
 .error {
   color: #b91c1c;
