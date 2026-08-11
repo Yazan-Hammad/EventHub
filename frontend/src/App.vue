@@ -1,5 +1,10 @@
 <script setup>
+import { onMounted } from 'vue';
 import NavBar from './components/NavBar.vue';
+import { useAuth } from './composables/useAuth';
+
+const { fetchMe } = useAuth();
+onMounted(fetchMe);
 </script>
 
 <template>

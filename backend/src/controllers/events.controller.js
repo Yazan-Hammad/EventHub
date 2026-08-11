@@ -114,6 +114,9 @@ async function validateEventPayload(body, { partial = false } = {}) {
 }
 
 async function createEvent(req, res) {
+  if (!req.body.organizer && req.user) {
+    req.body.organizer = req.user._id.toString();
+  }
   await validateEventPayload(req.body);
   const { title, description, startsAt, price, venue, organizer, categories = [] } = req.body;
 
@@ -135,6 +138,10 @@ async function updateEvent(req, res) {
 
   const event = await Event.findById(id);
   if (!event) throw new ApiError(404, 'Event not found');
+
+  if (event.organizer.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'Forbidden: You are not authorized to update this event');
+  }
 
   await validateEventPayload(req.body, { partial: true });
 
@@ -159,25 +166,27 @@ async function deleteEvent(req, res) {
   const event = await Event.findById(id);
   if (!event) throw new ApiError(404, 'Event not found');
 
+  if (event.organizer.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'Forbidden: You are not authorized to delete this event');
+  }
+
   await Event.deleteOne({ _id: id });
   await Registration.deleteMany({ event: id });
 
   res.status(204).send();
 }
 
+
 async function registerForEvent(req, res) {
   const { id } = req.params;
-  const { userId, ticketCount = 1 } = req.body;
+  const { ticketCount = 1 } = req.body;
+  const userId = req.user._id;
 
   if (!isValidId(id)) throw new ApiError(400, `Invalid id: ${id}`);
-  if (!userId || !isValidId(userId)) throw new ApiError(400, 'userId must be a valid id');
   if (!Number.isInteger(ticketCount) || ticketCount < 1) throw new ApiError(400, 'ticketCount must be a positive integer');
 
   const event = await Event.findById(id).populate('venue', 'capacity');
   if (!event) throw new ApiError(404, 'Event not found');
-
-  const user = await User.findById(userId);
-  if (!user) throw new ApiError(400, 'userId does not reference an existing user');
 
   // Only confirmed registrations count against capacity — a full event no longer
   // rejects new registrations, it waitlists them instead. $ne 'waitlisted' (rather

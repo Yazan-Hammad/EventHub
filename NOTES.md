@@ -36,6 +36,44 @@
   for that event, by `_id` order) rather than stored, since it shifts as other people
   register — storing it would mean re-writing every later entry whenever one is removed.
 
+## Authentication (email OTP)
+
+Registering requires a verified email; browsing does not. The mechanics:
+
+- **Plain session token, not JWT.** `Session { token, user, expiresAt }` with a TTL index
+  so MongoDB expires old sessions itself. A signed JWT would avoid the extra collection,
+  but the task spec lists "JWT authentication" as its own separate extra-credit item — using
+  it here as a side effect of building OTP would blur two things that are meant to be
+  independent, and a DB-backed token makes logout an actual guaranteed revocation (delete
+  the row) rather than "wait for a JWT to expire" or maintaining a blocklist.
+- **OTP storage**: a short-lived `OtpCode { email, code, attempts, expiresAt }`, also
+  TTL-indexed. Requesting a new code deletes any existing one for that email first, so only
+  the latest code is ever valid. Verifying deletes it immediately (one-time use), win or
+  lose the attempt still counts toward the 5-attempt cap that invalidates the code
+  entirely — this bounds brute-force guessing of a 6-digit code (1 in a million per try) to
+  a handful of tries before a fresh code is required.
+- **Unknown email = signup.** There's no separate registration step; verifying a code for
+  an email that doesn't match an existing `User` creates one on the spot (name defaults to
+  the email's local part). This app never had a distinct "sign up" flow even before OTP —
+  users only ever came from seed data — so treating "prove you own this email" as
+  sufficient to create an account keeps the surface small.
+- **The register endpoint stopped trusting a client-supplied `userId`.** Before real auth
+  existed, `POST /events/:id/register` took `{ userId, ticketCount }` — a stand-in, since
+  there was no way to verify identity anyway. Now that there is, the endpoint takes
+  `{ ticketCount }` only and reads the user from `req.user`, set by `requireAuth` from the
+  bearer token. Anything else would mean a verified session buys you nothing.
+- **Ethereal, not a real SMTP provider.** Nodemailer's `createTestAccount()` spins up a
+  free, real (but sandboxed) SMTP account with zero configuration and zero real
+  credentials — nothing lands in an actual inbox, but the email genuinely gets sent and can
+  be read via the preview URL each send returns. That preview URL is surfaced straight
+  through the API response and the UI (a "View email" link next to the code input) so the
+  whole flow is testable end-to-end without owning a real mailbox. Swapping in a real
+  provider later is a change to `backend/src/utils/mailer.js` alone.
+- **Scope boundary**: only registering is gated. Creating an event still lets you pick any
+  user as organizer from a dropdown — that path predates this feature and wasn't part of
+  what was asked, so it was left as-is rather than silently expanding what "requires login"
+  means across the app.
+
 ## Text search
 
 `GET /api/events?q=...` matches a case-insensitive **regex** against `title` and
@@ -53,6 +91,17 @@ typo tolerance and highlighting, but that's explicitly extra credit and wasn't a
 
 ## What I'd improve with more time
 
+- **Passwordless Auth for Attendees**: Authentication for attendees was intentionally made passwordless (via Email-OTP) to make using the website significantly easier, faster, and more accessible for attendees.
+- **Organizer Authentication & 2FA**: Authentication for organizers is distinct and depends on username and password authentication (with JWT). In future work, Two-Factor Authentication (2FA) will be implemented for organizers to bolster security for managing events.
+- **Registration Process Optimizations**: Optimizations for the registration process to handle higher concurrency and smoother workflows.
+- **Security Note on OTP Preview**: The "Show email" button / Ethereal preview is not a secure production method and is included strictly for presentation and demonstration purposes.
+- **Pre-Payment Category**: Add a pre-payment category/status to registrations where paying a portion of the registration cost ensures genuine commitment from users to attend the event.
+- **Update & Cancel Registrations**: Add features allowing users to update their registration details or cancel their registration.
+- **Conditional Cash Back Policy**: Cancelling a registration will not guarantee a cash back / refund unless it has not affected the full capacity of the event.
+- **Waitlist Cancellation Email Notifications**: When someone confirms a cancellation, automatically send an email to all users on the waiting list announcing that $X$ tickets are now available.
+- **Additional Event Filters**: Filter events by price range and organizer.
+- **Media Support**: Enable uploading and displaying photos and videos for events and venues/places.
+- **Reviews & Ratings System**: Enable users to post reviews and ratings for organizers, events, or places.
 - Auto-promoting the next waitlisted registration to `confirmed` when a confirmed spot
   frees up. There's no cancel/unregister endpoint in this app yet, so nothing currently
   frees a confirmed spot — this is a natural companion feature once cancellation exists,
@@ -65,6 +114,8 @@ typo tolerance and highlighting, but that's explicitly extra credit and wasn't a
 - A few automated tests for the trickier business rules: capacity enforcement, duplicate
   registration, and cascade delete on event removal.
 - Debounced search-as-you-type on the events list instead of a submit button.
-- Replace the guest/Login-button stand-in with real authentication (the navbar and register
-  flow are already gated on "is someone logged in", so swapping in real sessions/JWT later
-  is mostly a matter of how `currentUserId` gets set, not a UI rework).
+- Rate-limit `POST /auth/request-otp` per email/IP — right now nothing stops someone from
+  spamming an inbox with repeated code requests.
+- Gate event creation's organizer field on the logged-in user too, once there's a reason to
+  (see the scope boundary note above).
+
