@@ -126,7 +126,6 @@ onMounted(fetchEvent);
             v-model.number="ticketCount"
             type="number"
             min="1"
-            :disabled="registerStep !== 'idle'"
           />
         </label>
 
