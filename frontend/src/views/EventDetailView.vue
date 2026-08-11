@@ -5,7 +5,7 @@ import client from '../api/client';
 import { useAuth } from '../composables/useAuth';
 
 const route = useRoute();
-const { isLoggedIn, authError, otpPreviewUrl, requestOtp, verifyOtp } = useAuth();
+const { user, isLoggedIn, authError, otpPreviewUrl, requestOtp, verifyOtp } = useAuth();
 
 const event = ref(null);
 const attendees = ref([]);
@@ -14,6 +14,18 @@ const error = ref('');
 
 const confirmedAttendees = computed(() => attendees.value.filter((r) => r.status !== 'waitlisted'));
 const waitlistedAttendees = computed(() => attendees.value.filter((r) => r.status === 'waitlisted'));
+
+// The logged-in user's own registration for this event, if any — used to hide the
+// register form and show its status instead, rather than letting them try again
+// and hit the 409 from the backend's duplicate-registration check.
+const myRegistration = computed(() => {
+  if (!user.value) return null;
+  return attendees.value.find((r) => r.user?._id === user.value._id) || null;
+});
+const myWaitlistPosition = computed(() => {
+  if (!myRegistration.value || myRegistration.value.status !== 'waitlisted') return null;
+  return waitlistedAttendees.value.findIndex((r) => r._id === myRegistration.value._id) + 1;
+});
 
 const ticketCount = ref(1);
 // 'idle' | 'email' | 'otp' — the email/otp steps only appear if you're not already
@@ -120,36 +132,48 @@ onMounted(fetchEvent);
       </ul>
 
       <section class="register-box">
-        <label class="ticket-label">
-          Tickets
-          <input
-            v-model.number="ticketCount"
-            type="number"
-            min="1"
-          />
-        </label>
+        <p v-if="myRegistration" class="already-registered">
+          <template v-if="myRegistration.status === 'waitlisted'">
+            You're on the waitlist for this event (position {{ myWaitlistPosition }}), for
+            {{ myRegistration.ticketCount }} ticket(s).
+          </template>
+          <template v-else>
+            You're already registered for this event ({{ myRegistration.ticketCount }} ticket(s)).
+          </template>
+        </p>
 
-        <template v-if="registerStep === 'idle'">
-          <button :disabled="registering" @click="startRegister">
-            {{ registering ? 'Registering...' : 'Register for this event' }}
-          </button>
-        </template>
+        <template v-else>
+          <label class="ticket-label">
+            Tickets
+            <input
+              v-model.number="ticketCount"
+              type="number"
+              min="1"
+            />
+          </label>
 
-        <template v-else-if="registerStep === 'email'">
-          <p class="hint">Enter your email to verify and complete registration.</p>
-          <input v-model="email" type="email" placeholder="you@example.com" />
-          <button :disabled="sendingCode || !email" @click="sendCode">
-            {{ sendingCode ? 'Sending...' : 'Send code' }}
-          </button>
-        </template>
+          <template v-if="registerStep === 'idle'">
+            <button :disabled="registering" @click="startRegister">
+              {{ registering ? 'Registering...' : 'Register for this event' }}
+            </button>
+          </template>
 
-        <template v-else-if="registerStep === 'otp'">
-          <p class="hint">Enter the 6-digit code sent to {{ email }}.</p>
-          <a v-if="otpPreviewUrl" :href="otpPreviewUrl" target="_blank" rel="noopener">View email</a>
-          <input v-model="code" type="text" inputmode="numeric" maxlength="6" placeholder="123456" />
-          <button :disabled="verifyingCode || !code" @click="confirmCode">
-            {{ verifyingCode ? 'Verifying...' : 'Verify' }}
-          </button>
+          <template v-else-if="registerStep === 'email'">
+            <p class="hint">Enter your email to verify and complete registration.</p>
+            <input v-model="email" type="email" placeholder="you@example.com" />
+            <button :disabled="sendingCode || !email" @click="sendCode">
+              {{ sendingCode ? 'Sending...' : 'Send code' }}
+            </button>
+          </template>
+
+          <template v-else-if="registerStep === 'otp'">
+            <p class="hint">Enter the 6-digit code sent to {{ email }}.</p>
+            <a v-if="otpPreviewUrl" :href="otpPreviewUrl" target="_blank" rel="noopener">View email</a>
+            <input v-model="code" type="text" inputmode="numeric" maxlength="6" placeholder="123456" />
+            <button :disabled="verifyingCode || !code" @click="confirmCode">
+              {{ verifyingCode ? 'Verifying...' : 'Verify' }}
+            </button>
+          </template>
         </template>
 
         <p v-if="registerError" class="error">{{ registerError }}</p>
@@ -215,6 +239,11 @@ onMounted(fetchEvent);
   border: 1px solid #cbd2d9;
   border-radius: 4px;
   width: 220px;
+}
+.already-registered {
+  margin: 0;
+  font-weight: 600;
+  color: #15803d;
 }
 .hint {
   margin: 0;
