@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import client from '../api/client';
 import { useCurrentUser } from '../composables/useCurrentUser';
@@ -11,6 +11,9 @@ const event = ref(null);
 const attendees = ref([]);
 const loading = ref(true);
 const error = ref('');
+
+const confirmedAttendees = computed(() => attendees.value.filter((r) => r.status !== 'waitlisted'));
+const waitlistedAttendees = computed(() => attendees.value.filter((r) => r.status === 'waitlisted'));
 
 const registering = ref(false);
 const registerError = ref('');
@@ -42,11 +45,13 @@ async function register() {
   }
   registering.value = true;
   try {
-    await client.post(`/events/${route.params.id}/register`, {
+    const { data } = await client.post(`/events/${route.params.id}/register`, {
       userId: currentUserId.value,
       ticketCount: 1,
     });
-    registerSuccess.value = 'Registered successfully!';
+    registerSuccess.value = data.status === 'waitlisted'
+      ? `This event is full — you've been added to the waitlist (position ${data.waitlistPosition}).`
+      : 'Registered successfully!';
     await fetchEvent();
   } catch (err) {
     registerError.value = err.response?.data?.error || 'Registration failed.';
@@ -91,11 +96,20 @@ onMounted(() => {
       </section>
 
       <section>
-        <h2>Attendees ({{ attendees.length }})</h2>
+        <h2>Attendees ({{ confirmedAttendees.length }})</h2>
         <p v-if="!attendees.length">No one has registered yet.</p>
-        <ul v-else>
-          <li v-for="reg in attendees" :key="reg._id">
+        <ul v-else-if="confirmedAttendees.length">
+          <li v-for="reg in confirmedAttendees" :key="reg._id">
             {{ reg.user?.name }} — {{ reg.ticketCount }} ticket(s)
+          </li>
+        </ul>
+      </section>
+
+      <section v-if="waitlistedAttendees.length">
+        <h2>Waitlist ({{ waitlistedAttendees.length }})</h2>
+        <ul>
+          <li v-for="(reg, index) in waitlistedAttendees" :key="reg._id">
+            #{{ index + 1 }} {{ reg.user?.name }} — {{ reg.ticketCount }} ticket(s)
           </li>
         </ul>
       </section>
