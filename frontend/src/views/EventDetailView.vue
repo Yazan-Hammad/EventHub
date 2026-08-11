@@ -1,19 +1,42 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import client from '../api/client';
 import { useAuth } from '../composables/useAuth';
 
 const route = useRoute();
+const router = useRouter();
 const { user, isLoggedIn, authError, otpPreviewUrl, requestOtp, verifyOtp } = useAuth();
 
 const event = ref(null);
 const attendees = ref([]);
 const loading = ref(true);
 const error = ref('');
+const deleting = ref(false);
+const deleteError = ref('');
 
 const confirmedAttendees = computed(() => attendees.value.filter((r) => r.status !== 'waitlisted'));
 const waitlistedAttendees = computed(() => attendees.value.filter((r) => r.status === 'waitlisted'));
+
+const isOwner = computed(() => {
+  if (!user.value || !event.value?.organizer) return false;
+  const organizerId = typeof event.value.organizer === 'object' ? event.value.organizer._id : event.value.organizer;
+  return organizerId === user.value._id;
+});
+
+async function handleDelete() {
+  if (!confirm('Are you sure you want to delete this event?')) return;
+  deleteError.value = '';
+  deleting.value = true;
+  try {
+    await client.delete(`/events/${route.params.id}`);
+    router.push('/');
+  } catch (err) {
+    deleteError.value = err.response?.data?.error || 'Failed to delete event.';
+  } finally {
+    deleting.value = false;
+  }
+}
 
 // The logged-in user's own registration for this event, if any — used to hide the
 // register form and show its status instead, rather than letting them try again
@@ -122,6 +145,15 @@ onMounted(fetchEvent);
     <div v-else-if="event">
       <router-link to="/" draggable="false">&larr; Back to events</router-link>
       <h1>{{ event.title }}</h1>
+
+      <div v-if="isOwner" class="organizer-box">
+        <span class="owner-badge">👑 You are the Organizer of this event</span>
+        <button class="btn-danger" :disabled="deleting" @click="handleDelete">
+          {{ deleting ? 'Deleting...' : 'Delete Event' }}
+        </button>
+        <span v-if="deleteError" class="error">{{ deleteError }}</span>
+      </div>
+
       <p>{{ event.description }}</p>
       <ul class="meta">
         <li><strong>When:</strong> {{ formatDate(event.startsAt) }}</li>
@@ -131,14 +163,17 @@ onMounted(fetchEvent);
         <li v-if="event.categories?.length"><strong>Categories:</strong> {{ event.categories.join(', ') }}</li>
       </ul>
 
+
       <section class="register-box">
+        <p v-if="registerSuccess" class="success">{{ registerSuccess }}</p>
+
         <p v-if="myRegistration" class="already-registered">
           <template v-if="myRegistration.status === 'waitlisted'">
             You're on the waitlist for this event (position {{ myWaitlistPosition }}), for
             {{ myRegistration.ticketCount }} ticket(s).
           </template>
           <template v-else>
-            You're already registered for this event ({{ myRegistration.ticketCount }} ticket(s)).
+            You are registered for this event ({{ myRegistration.ticketCount }} ticket(s)).
           </template>
         </p>
 
@@ -177,8 +212,8 @@ onMounted(fetchEvent);
         </template>
 
         <p v-if="registerError" class="error">{{ registerError }}</p>
-        <p v-if="registerSuccess" class="success">{{ registerSuccess }}</p>
       </section>
+
 
       <section>
         <h2>Attendees ({{ confirmedAttendees.length }})</h2>
@@ -250,6 +285,33 @@ onMounted(fetchEvent);
   font-size: 0.9rem;
   color: #52606d;
 }
+.organizer-box {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.owner-badge {
+  font-weight: 600;
+  color: #1e40af;
+}
+.btn-danger {
+  padding: 0.35rem 0.75rem;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.btn-danger:hover {
+  background: #b91c1c;
+}
 .error {
   color: #b91c1c;
 }
@@ -257,3 +319,4 @@ onMounted(fetchEvent);
   color: #15803d;
 }
 </style>
+

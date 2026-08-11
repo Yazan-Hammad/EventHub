@@ -91,6 +91,17 @@ typo tolerance and highlighting, but that's explicitly extra credit and wasn't a
 
 ## What I'd improve with more time
 
+- **Passwordless Auth for Attendees**: Authentication for attendees was intentionally made passwordless (via Email-OTP) to make using the website significantly easier, faster, and more accessible for attendees.
+- **Organizer Authentication & 2FA**: Authentication for organizers is distinct and depends on username and password authentication (with JWT). In future work, Two-Factor Authentication (2FA) will be implemented for organizers to bolster security for managing events.
+- **Registration Process Optimizations**: Optimizations for the registration process to handle higher concurrency and smoother workflows.
+- **Security Note on OTP Preview**: The "Show email" button / Ethereal preview is not a secure production method and is included strictly for presentation and demonstration purposes.
+- **Pre-Payment Category**: Add a pre-payment category/status to registrations where paying a portion of the registration cost ensures genuine commitment from users to attend the event.
+- **Update & Cancel Registrations**: Add features allowing users to update their registration details or cancel their registration.
+- **Conditional Cash Back Policy**: Cancelling a registration will not guarantee a cash back / refund unless it has not affected the full capacity of the event.
+- **Waitlist Cancellation Email Notifications**: When someone confirms a cancellation, automatically send an email to all users on the waiting list announcing that $X$ tickets are now available.
+- **Additional Event Filters**: Filter events by price range and organizer.
+- **Media Support**: Enable uploading and displaying photos and videos for events and venues/places.
+- **Reviews & Ratings System**: Enable users to post reviews and ratings for organizers, events, or places.
 - Auto-promoting the next waitlisted registration to `confirmed` when a confirmed spot
   frees up. There's no cancel/unregister endpoint in this app yet, so nothing currently
   frees a confirmed spot — this is a natural companion feature once cancellation exists,
@@ -107,3 +118,4 @@ typo tolerance and highlighting, but that's explicitly extra credit and wasn't a
   spamming an inbox with repeated code requests.
 - Gate event creation's organizer field on the logged-in user too, once there's a reason to
   (see the scope boundary note above).
+

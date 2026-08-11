@@ -1,9 +1,11 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watchEffect } from 'vue';
 import { useRouter } from 'vue-router';
 import client from '../api/client';
+import { useAuth } from '../composables/useAuth';
 
 const router = useRouter();
+const { user, isOrganizer } = useAuth();
 
 const venues = ref([]);
 const organizers = ref([]);
@@ -23,6 +25,12 @@ const form = ref({
 const submitting = ref(false);
 const submitError = ref('');
 
+watchEffect(() => {
+  if (user.value && isOrganizer.value && !form.value.organizer) {
+    form.value.organizer = user.value._id;
+  }
+});
+
 async function loadOptions() {
   loadingOptions.value = true;
   optionsError.value = '';
@@ -33,6 +41,9 @@ async function loadOptions() {
     ]);
     venues.value = venuesRes.data;
     organizers.value = usersRes.data;
+    if (user.value && isOrganizer.value) {
+      form.value.organizer = user.value._id;
+    }
   } catch (err) {
     optionsError.value = err.response?.data?.error || 'Failed to load venues/organizers.';
   } finally {
@@ -55,7 +66,7 @@ async function submit() {
       startsAt: form.value.startsAt,
       price: Number(form.value.price),
       venue: form.value.venue,
-      organizer: form.value.organizer,
+      organizer: form.value.organizer || user.value?._id,
       categories,
     });
 
@@ -74,7 +85,11 @@ onMounted(loadOptions);
   <div>
     <h1>Create event</h1>
 
-    <p v-if="loadingOptions">Loading form...</p>
+    <div v-if="!isOrganizer" class="auth-warning">
+      <p>⚠️ You must be logged in as an <strong>Organizer</strong> to create events.</p>
+    </div>
+
+    <p v-else-if="loadingOptions">Loading form...</p>
     <p v-else-if="optionsError" class="error">{{ optionsError }}</p>
 
     <form v-else class="event-form" @submit.prevent="submit">
@@ -129,6 +144,7 @@ onMounted(loadOptions);
     </form>
   </div>
 </template>
+
 
 <style scoped>
 .event-form {

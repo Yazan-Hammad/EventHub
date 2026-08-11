@@ -1,6 +1,6 @@
 const express = require('express');
 const asyncHandler = require('../middleware/asyncHandler');
-const requireAuth = require('../middleware/requireAuth');
+const { requireAuth, requireOrganizer } = require('../middleware/requireAuth');
 const {
   listEvents,
   getEvent,
@@ -15,10 +15,11 @@ const router = express.Router();
 
 router.get('/', asyncHandler(listEvents));
 router.get('/:id', asyncHandler(getEvent));
-router.post('/', asyncHandler(createEvent));
-router.put('/:id', asyncHandler(updateEvent));
-router.delete('/:id', asyncHandler(deleteEvent));
+router.post('/', asyncHandler(requireAuth), asyncHandler(requireOrganizer), asyncHandler(createEvent));
+router.put('/:id', asyncHandler(requireAuth), asyncHandler(requireOrganizer), asyncHandler(updateEvent));
+router.delete('/:id', asyncHandler(requireAuth), asyncHandler(requireOrganizer), asyncHandler(deleteEvent));
 router.post('/:id/register', asyncHandler(requireAuth), asyncHandler(registerForEvent));
 router.get('/:id/attendees', asyncHandler(listAttendees));
 
 module.exports = router;
+

@@ -114,6 +114,9 @@ async function validateEventPayload(body, { partial = false } = {}) {
 }
 
 async function createEvent(req, res) {
+  if (!req.body.organizer && req.user) {
+    req.body.organizer = req.user._id.toString();
+  }
   await validateEventPayload(req.body);
   const { title, description, startsAt, price, venue, organizer, categories = [] } = req.body;
 
@@ -135,6 +138,10 @@ async function updateEvent(req, res) {
 
   const event = await Event.findById(id);
   if (!event) throw new ApiError(404, 'Event not found');
+
+  if (event.organizer.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'Forbidden: You are not authorized to update this event');
+  }
 
   await validateEventPayload(req.body, { partial: true });
 
@@ -159,11 +166,16 @@ async function deleteEvent(req, res) {
   const event = await Event.findById(id);
   if (!event) throw new ApiError(404, 'Event not found');
 
+  if (event.organizer.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'Forbidden: You are not authorized to delete this event');
+  }
+
   await Event.deleteOne({ _id: id });
   await Registration.deleteMany({ event: id });
 
   res.status(204).send();
 }
+
 
 async function registerForEvent(req, res) {
   const { id } = req.params;

@@ -11,6 +11,7 @@ const authError = ref('');
 const otpPreviewUrl = ref('');
 
 const isLoggedIn = computed(() => !!user.value);
+const isOrganizer = computed(() => user.value?.role === 'organizer');
 
 function setToken(value) {
   token.value = value;
@@ -57,6 +58,32 @@ async function verifyOtp(email, code) {
   }
 }
 
+async function loginOrganizer(username, password) {
+  authError.value = '';
+  try {
+    const { data } = await client.post('/auth/organizer/login', { username, password });
+    setToken(data.token);
+    user.value = data.user;
+    return true;
+  } catch (err) {
+    authError.value = err.response?.data?.error || 'Login failed. Check credentials.';
+    return false;
+  }
+}
+
+async function registerOrganizer({ username, email, password, name }) {
+  authError.value = '';
+  try {
+    const { data } = await client.post('/auth/organizer/register', { username, email, password, name });
+    setToken(data.token);
+    user.value = data.user;
+    return true;
+  } catch (err) {
+    authError.value = err.response?.data?.error || 'Registration failed.';
+    return false;
+  }
+}
+
 async function logout() {
   try {
     await client.post('/auth/logout');
@@ -68,5 +95,19 @@ async function logout() {
 }
 
 export function useAuth() {
-  return { token, user, isLoggedIn, authError, otpPreviewUrl, fetchMe, requestOtp, verifyOtp, logout };
+  return {
+    token,
+    user,
+    isLoggedIn,
+    isOrganizer,
+    authError,
+    otpPreviewUrl,
+    fetchMe,
+    requestOtp,
+    verifyOtp,
+    loginOrganizer,
+    registerOrganizer,
+    logout,
+  };
 }
+

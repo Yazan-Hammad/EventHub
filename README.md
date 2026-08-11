@@ -101,11 +101,10 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 `backend/src/seedData.js` clears the four collections and inserts 5 users, 4 venues and 6
 events, plus a handful of registrations. One event ("Node.js Deep Dive Workshop") is seeded
 at a 3-capacity venue that's already full (3 confirmed registrations) with one person on
-the waitlist, so the waitlist feature is visible immediately — log in as `maya@example.com`
-(the one seeded user not yet registered for it) and register to land at waitlist position
-2. Since login is real email-OTP now, seeded users don't have passwords to sign in with
-directly — logging in as one just means requesting a code for their exact seeded email; the
-code still goes through the same Ethereal preview flow as any other email.
+the waitlist, so the waitlist feature is visible immediately.
+
+For simplicity in demonstration, all seeded users (`ava`, `liam`, `sofia`, `noah`, `maya`) are set up with **username** equal to their first name and a default password of **`12345`** for Organizer login via JWT. Attendees can also log in passwordlessly using Email-OTP.
+
 
 It runs in two ways:
 

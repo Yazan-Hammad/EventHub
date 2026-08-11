@@ -1,3 +1,4 @@
+const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 const Venue = require('./models/Venue');
 const Event = require('./models/Event');
@@ -13,13 +14,16 @@ async function seedDatabase() {
     Registration.deleteMany({}),
   ]);
 
+  const defaultPassword = await bcrypt.hash('12345', 10);
+
   const users = await User.insertMany([
-    { name: 'Ava Thompson', email: 'ava@example.com' },
-    { name: 'Liam Chen', email: 'liam@example.com' },
-    { name: 'Sofia Rossi', email: 'sofia@example.com' },
-    { name: 'Noah Patel', email: 'noah@example.com' },
-    { name: 'Maya Johnson', email: 'maya@example.com' },
+    { name: 'Ava Thompson', email: 'ava@example.com', username: 'ava', password: defaultPassword, role: 'organizer' },
+    { name: 'Liam Chen', email: 'liam@example.com', username: 'liam', password: defaultPassword, role: 'organizer' },
+    { name: 'Sofia Rossi', email: 'sofia@example.com', username: 'sofia', password: defaultPassword, role: 'organizer' },
+    { name: 'Noah Patel', email: 'noah@example.com', username: 'noah', password: defaultPassword, role: 'organizer' },
+    { name: 'Maya Johnson', email: 'maya@example.com', username: 'maya', password: defaultPassword, role: 'organizer' },
   ]);
+
 
   const venues = await Venue.insertMany([
     { name: 'Riverside Hall', city: 'Austin', address: '100 River St', capacity: 3 },
