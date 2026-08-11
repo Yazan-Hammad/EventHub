@@ -98,8 +98,9 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 `backend/src/seedData.js` clears the four collections and inserts 5 users, 4 venues and 6
 events, plus a handful of registrations. One event ("Node.js Deep Dive Workshop") is seeded
-at a 3-capacity venue with 2 tickets already taken, so you can immediately test the
-capacity-limit rejection by registering one more person.
+at a 3-capacity venue that's already full (3 confirmed registrations) with one person on
+the waitlist, so the waitlist feature is visible immediately — log in as the one remaining
+unregistered user (Maya) and register to see yourself land at waitlist position 2.
 
 It runs in two ways:
 

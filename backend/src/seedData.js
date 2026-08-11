@@ -89,19 +89,26 @@ async function seedDatabase() {
   ]);
 
   await Registration.insertMany([
-    { user: liam._id, event: events[0]._id, ticketCount: 1 },
-    { user: sofia._id, event: events[0]._id, ticketCount: 1 },
-    { user: noah._id, event: events[1]._id, ticketCount: 2 },
-    { user: maya._id, event: events[1]._id, ticketCount: 1 },
-    { user: ava._id, event: events[2]._id, ticketCount: 1 },
-    { user: liam._id, event: events[3]._id, ticketCount: 1 },
-    { user: maya._id, event: events[4]._id, ticketCount: 3 },
-    { user: noah._id, event: events[5]._id, ticketCount: 1 },
-    { user: sofia._id, event: events[5]._id, ticketCount: 1 },
+    // Riverside Hall (capacity 3): filled to capacity, plus one waitlisted, so the
+    // waitlist feature is visible immediately. Maya is deliberately left unregistered
+    // for this event so you can log in as her and register to see yourself land at
+    // waitlist position 2.
+    { user: liam._id, event: events[0]._id, ticketCount: 1, status: 'confirmed' },
+    { user: sofia._id, event: events[0]._id, ticketCount: 1, status: 'confirmed' },
+    { user: ava._id, event: events[0]._id, ticketCount: 1, status: 'confirmed' },
+    { user: noah._id, event: events[0]._id, ticketCount: 1, status: 'waitlisted' },
+
+    { user: noah._id, event: events[1]._id, ticketCount: 2, status: 'confirmed' },
+    { user: maya._id, event: events[1]._id, ticketCount: 1, status: 'confirmed' },
+    { user: ava._id, event: events[2]._id, ticketCount: 1, status: 'confirmed' },
+    { user: liam._id, event: events[3]._id, ticketCount: 1, status: 'confirmed' },
+    { user: maya._id, event: events[4]._id, ticketCount: 3, status: 'confirmed' },
+    { user: noah._id, event: events[5]._id, ticketCount: 1, status: 'confirmed' },
+    { user: sofia._id, event: events[5]._id, ticketCount: 1, status: 'confirmed' },
   ]);
 
   console.log(`Seeded ${users.length} users, ${venues.length} venues, ${events.length} events.`);
-  console.log('Riverside Hall event (capacity 3) has 2 tickets already registered — good for testing the capacity limit.');
+  console.log('Riverside Hall event (capacity 3) is full (3 confirmed) with 1 waitlisted — good for testing the waitlist feature.');
 }
 
 // Only seeds if the database looks empty — safe to call on every server startup.
