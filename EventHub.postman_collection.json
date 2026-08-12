@@ -7,11 +7,18 @@
   },
   "variable": [
     { "key": "serverUrl", "value": "http://localhost:5000", "type": "string" },
-    { "key": "baseUrl", "value": "http://localhost:5000/api/v1", "type": "string" },
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api/v1",
+      "type": "string"
+    },
     { "key": "eventId", "value": "", "type": "string" },
     { "key": "userId", "value": "", "type": "string" },
     { "key": "venueId", "value": "", "type": "string" },
-    { "key": "organizerId", "value": "", "type": "string" }
+    { "key": "organizerId", "value": "", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "email", "value": "", "type": "string" },
+    { "key": "otpCode", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -37,6 +44,21 @@
       "item": [
         {
           "name": "List Events",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.length && !pm.collectionVariables.get('eventId')) {",
+                  "  pm.collectionVariables.set('eventId', json.data[0]._id || json.data[0].id);",
+                  "}",
+                  "pm.test('List Events returned an array', function () { pm.expect(json.data).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -45,9 +67,24 @@
               "host": ["{{baseUrl}}"],
               "path": ["events"],
               "query": [
-                { "key": "q", "value": "", "description": "Text search across title + description", "disabled": true },
-                { "key": "city", "value": "", "description": "Filter by venue city", "disabled": true },
-                { "key": "category", "value": "", "description": "Filter by category", "disabled": true },
+                {
+                  "key": "q",
+                  "value": "",
+                  "description": "Text search across title + description",
+                  "disabled": true
+                },
+                {
+                  "key": "city",
+                  "value": "",
+                  "description": "Filter by venue city",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "description": "Filter by category",
+                  "disabled": true
+                },
                 { "key": "page", "value": "1" },
                 { "key": "size", "value": "10" }
               ]
@@ -72,9 +109,7 @@
           "name": "Create Event",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Board Game Night\",\n  \"description\": \"Casual board games, snacks provided.\",\n  \"startsAt\": \"2026-09-20T18:00:00.000Z\",\n  \"price\": 5,\n  \"venue\": \"{{venueId}}\",\n  \"organizer\": \"{{organizerId}}\",\n  \"categories\": [\"games\", \"social\"]\n}",
@@ -92,9 +127,7 @@
           "name": "Update Event",
           "request": {
             "method": "PUT",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"price\": 10\n}",
@@ -126,11 +159,12 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"ticketCount\": 1\n}",
+              "raw": "{\n  \"ticketCount\": 1\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -138,7 +172,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["events", "{{eventId}}", "register"]
             },
-            "description": "Registers a user for the event. 400 if the event is at the capacity of its venue, 404 if the event doesn't exist, 409 if the user is already registered."
+            "description": "Registers the authenticated user for the event. Requires Authorization header. Succeeds with status 'confirmed' or 'waitlisted'; 404 if the event doesn't exist, 409 if the user is already registered."
           }
         },
         {
@@ -157,10 +191,156 @@
       ]
     },
     {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Organizer Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"ava\",\n  \"email\": \"ava@example.com\",\n  \"password\": \"12345\",\n  \"name\": \"Ava\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/organizer/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "organizer", "register"]
+            },
+            "description": "Register a new organizer account. Returns the created user and status."
+          }
+        },
+        {
+          "name": "Organizer Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('token', json.token);",
+                  "if (json.user && json.user._id) pm.collectionVariables.set('organizerId', json.user._id);",
+                  "pm.test('Response contains token', function () { pm.expect(json.token).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"ava\",\n  \"password\": \"12345\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/organizer/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "organizer", "login"]
+            },
+            "description": "Login as an organizer. Returns { token, user } — save the token to {{token}} for subsequent requests."
+          }
+        },
+        {
+          "name": "Request OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/request-otp",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "request-otp"]
+            },
+            "description": "Sends a 6-digit code to the supplied email (Ethereal in dev)."
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('token', json.token);",
+                  "if (json.user && json.user._id) pm.collectionVariables.set('userId', json.user._id);",
+                  "pm.test('Response contains token', function () { pm.expect(json.token).to.exist; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"code\": \"{{otpCode}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/verify-otp",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "verify-otp"]
+            },
+            "description": "Verify the code and returns { token, user }. Save token to {{token}}."
+          }
+        },
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Get current logged-in user; requires Authorization header."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Invalidate the current session; requires auth."
+          }
+        }
+      ]
+    },
+    {
       "name": "Venues",
       "item": [
         {
           "name": "List Venues",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json && json.length && !pm.collectionVariables.get('venueId')) {",
+                  "  pm.collectionVariables.set('venueId', json[0]._id || json[0].id);",
+                  "}",
+                  "pm.test('List Venues returned an array', function () { pm.expect(json).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
@@ -179,6 +359,21 @@
       "item": [
         {
           "name": "List Users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json && json.length && !pm.collectionVariables.get('userId')) {",
+                  "  pm.collectionVariables.set('userId', json[0]._id || json[0].id);",
+                  "}",
+                  "pm.test('List Users returned an array', function () { pm.expect(json).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [],
