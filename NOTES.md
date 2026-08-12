@@ -36,43 +36,48 @@
   for that event, by `_id` order) rather than stored, since it shifts as other people
   register — storing it would mean re-writing every later entry whenever one is removed.
 
-## Authentication (email OTP)
+## Authentication
 
-Registering requires a verified email; browsing does not. The mechanics:
+There are now two distinct auth flows in the app:
 
-- **Plain session token, not JWT.** `Session { token, user, expiresAt }` with a TTL index
-  so MongoDB expires old sessions itself. A signed JWT would avoid the extra collection,
-  but the task spec lists "JWT authentication" as its own separate extra-credit item — using
-  it here as a side effect of building OTP would blur two things that are meant to be
-  independent, and a DB-backed token makes logout an actual guaranteed revocation (delete
-  the row) rather than "wait for a JWT to expire" or maintaining a blocklist.
-- **OTP storage**: a short-lived `OtpCode { email, code, attempts, expiresAt }`, also
-  TTL-indexed. Requesting a new code deletes any existing one for that email first, so only
-  the latest code is ever valid. Verifying deletes it immediately (one-time use), win or
-  lose the attempt still counts toward the 5-attempt cap that invalidates the code
-  entirely — this bounds brute-force guessing of a 6-digit code (1 in a million per try) to
-  a handful of tries before a fresh code is required.
-- **Unknown email = signup.** There's no separate registration step; verifying a code for
-  an email that doesn't match an existing `User` creates one on the spot (name defaults to
-  the email's local part). This app never had a distinct "sign up" flow even before OTP —
-  users only ever came from seed data — so treating "prove you own this email" as
-  sufficient to create an account keeps the surface small.
-- **The register endpoint stopped trusting a client-supplied `userId`.** Before real auth
-  existed, `POST /events/:id/register` took `{ userId, ticketCount }` — a stand-in, since
-  there was no way to verify identity anyway. Now that there is, the endpoint takes
-  `{ ticketCount }` only and reads the user from `req.user`, set by `requireAuth` from the
-  bearer token. Anything else would mean a verified session buys you nothing.
-- **Ethereal, not a real SMTP provider.** Nodemailer's `createTestAccount()` spins up a
-  free, real (but sandboxed) SMTP account with zero configuration and zero real
-  credentials — nothing lands in an actual inbox, but the email genuinely gets sent and can
-  be read via the preview URL each send returns. That preview URL is surfaced straight
-  through the API response and the UI (a "View email" link next to the code input) so the
-  whole flow is testable end-to-end without owning a real mailbox. Swapping in a real
-  provider later is a change to `backend/src/utils/mailer.js` alone.
-- **Scope boundary**: only registering is gated. Creating an event still lets you pick any
-  user as organizer from a dropdown — that path predates this feature and wasn't part of
-  what was asked, so it was left as-is rather than silently expanding what "requires login"
-  means across the app.
+- **Attendee auth** uses email OTP and is required only for event registration.
+- **Organizer auth** uses username/password and is required for organizer login paths.
+
+### Attendee auth (email OTP)
+
+Registering for an event requires a verified email; browsing the event catalog does not.
+The attendee flow is passwordless and deliberately lightweight.
+
+- **Plain session token, not JWT.** `Session { token, user, expiresAt }` is stored in MongoDB
+  with a TTL index so old sessions expire automatically. A JWT would avoid the collection,
+  but this app keeps attendee auth separate from the organizer path and also makes logout
+  a real revoke operation (`DELETE` the session) rather than relying on expiration.
+- **OTP storage.** Codes are stored as `OtpCode { email, code, attempts, expiresAt }` with
+  a TTL index. Requesting a new code removes any previous one for that email, so only the
+  latest code can be used. Verifying deletes it immediately, and every verification counts
+  toward a 5-attempt cap that invalidates the code on too many failures.
+- **Unknown email = signup.** The app creates a `User` automatically when an OTP is
+  verified for an email that doesn't already exist. The name defaults to the email's local
+  part. This keeps the attendee path simple and avoids a separate registration form.
+- **Protected event registration.** `POST /events/:id/register` now accepts only
+  `{ ticketCount }` and derives the attendee from `req.user` populated by `requireAuth`.
+  The old client-supplied `userId` parameter is no longer trusted.
+- **Ethereal email preview.** The dev setup uses Nodemailer `createTestAccount()` so the
+  email is sent to a sandboxed preview URL rather than a real inbox. This makes the OTP
+  flow testable without requiring actual mail delivery. Switching to a real SMTP provider
+  would only require changes in `backend/src/utils/mailer.js`.
+
+### Organizer auth (username/password)
+
+Organizer authentication is separate from attendee OTP auth and is used only for the
+organizer login flow.
+
+- **Username/password login.** Organizers sign in with `POST /auth/organizer/login`.
+- **Separate auth model.** This path is intentionally distinct because organizer actions
+  are different from attendee registration, and the app's current scope doesn't require
+  a single unified auth mechanism across both roles.
+- **Token-based session.** The organizer login response returns `{ token, user }`, and that
+  token is used for authenticated organizer requests.
 
 ## Text search
 
@@ -91,10 +96,8 @@ typo tolerance and highlighting, but that's explicitly extra credit and wasn't a
 
 ## What I'd improve with more time
 
-- **Passwordless Auth for Attendees**: Authentication for attendees was intentionally made passwordless (via Email-OTP) to make using the website significantly easier, faster, and more accessible for attendees.
 - **Organizer Authentication & 2FA**: Authentication for organizers is distinct and depends on username and password authentication (with JWT). In future work, Two-Factor Authentication (2FA) will be implemented for organizers to bolster security for managing events.
 - **Registration Process Optimizations**: Optimizations for the registration process to handle higher concurrency and smoother workflows.
-- **Security Note on OTP Preview**: The "Show email" button / Ethereal preview is not a secure production method and is included strictly for presentation and demonstration purposes.
 - **Pre-Payment Category**: Add a pre-payment category/status to registrations where paying a portion of the registration cost ensures genuine commitment from users to attend the event.
 - **Update & Cancel Registrations**: Add features allowing users to update their registration details or cancel their registration.
 - **Conditional Cash Back Policy**: Cancelling a registration will not guarantee a cash back / refund unless it has not affected the full capacity of the event.
@@ -102,20 +105,13 @@ typo tolerance and highlighting, but that's explicitly extra credit and wasn't a
 - **Additional Event Filters**: Filter events by price range and organizer.
 - **Media Support**: Enable uploading and displaying photos and videos for events and venues/places.
 - **Reviews & Ratings System**: Enable users to post reviews and ratings for organizers, events, or places.
-- Auto-promoting the next waitlisted registration to `confirmed` when a confirmed spot
-  frees up. There's no cancel/unregister endpoint in this app yet, so nothing currently
-  frees a confirmed spot — this is a natural companion feature once cancellation exists,
-  not built speculatively ahead of it.
 - A dedicated "edit event" screen in the frontend (the API supports `PUT`, the UI doesn't
   yet expose it).
-- Server-side request validation with a schema library (e.g. Zod or Joi) instead of the
-  hand-rolled checks in the controllers — fine at this size, but would get repetitive if the
-  API grew.
 - A few automated tests for the trickier business rules: capacity enforcement, duplicate
   registration, and cascade delete on event removal.
-- Debounced search-as-you-type on the events list instead of a submit button.
 - Rate-limit `POST /auth/request-otp` per email/IP — right now nothing stops someone from
   spamming an inbox with repeated code requests.
 - Gate event creation's organizer field on the logged-in user too, once there's a reason to
   (see the scope boundary note above).
+- Swagger Documentation.
 
