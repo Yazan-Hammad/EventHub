@@ -20,6 +20,10 @@ Only requirement: **Docker Desktop** installed and running. No Node.js, no Mongo
 account, no manual setup.
 
 1. Clone the repo and open a terminal in its root folder (where `docker-compose.yml` is).
+   ```bash
+   git clone https://github.com/Yazan-Hammad/EventHub.git
+   cd EventHub
+   ```
 2. Run:
    ```bash
    docker compose up -d --build
@@ -168,6 +172,7 @@ full event no longer returns an error — it succeeds with `status: "waitlisted"
   and entering it. A verified session persists app-wide until you log out, so later
   registrations don't repeat the OTP step. `POST /events/:id/register` now derives the
   registering user from that verified session rather than trusting a client-supplied id.
+- **The system uses JWT authentication** for organizer access. Users must log in with a valid username and password to create events. Furthermore, update and       delete permissions are limited exclusively to the event's original creator.
 - Seed script and this README.
 - Full-stack `docker-compose.yml` (MongoDB + backend + frontend via nginx), with the
   backend auto-seeding an empty database on first boot — cloning the repo and running
@@ -193,9 +198,6 @@ Docker stack doesn't re-seed or duplicate data.
   frontend UI — only creation is wired up in the frontend.
 - Auto-promoting waitlisted registrations when a confirmed spot frees up — there's no
   cancel/unregister endpoint yet, so nothing currently frees a spot (see NOTES.md).
-- The Create Event page's organizer dropdown is intentionally untouched by this
-  authentication work — creating an event still lets you pick any user as organizer, it
-  isn't gated by being logged in. Only registering requires a verified session.
 
 ## Known issues
 
